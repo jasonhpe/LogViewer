@@ -72,7 +72,7 @@ class LogViewerApp:
     def run_analysis(self, filepath, tree_id):
         self.status.config(text=f"Analyzing {filepath}...")
         try:
-            output_dir = f"log_analysis_results/{Path(filepath).stem}"
+            output_dir = f"{Path(filepath).stem}_log_analysis_results"
             os.makedirs(output_dir, exist_ok=True)
             parse_bundle(filepath, output_dir)
             self.analyzed_bundles.add(filepath)
@@ -85,7 +85,7 @@ class LogViewerApp:
     def start_server(self):
         for item in self.tree.selection():
             filepath = self.tree.item(item, "values")[0]
-            output_dir = f"log_analysis_results/{Path(filepath).stem}"
+            output_dir = f"{Path(filepath).stem}_log_analysis_results"
             port = self.get_next_available_port()
             proc = subprocess.Popen(["python3", "-m", "http.server", str(port), "--directory", output_dir])
             self.running_servers[filepath] = (proc, port)
