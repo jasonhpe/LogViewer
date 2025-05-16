@@ -1,10 +1,11 @@
 import os
 import threading
+import subprocess
 import tkinter as tk
 from tkinter import filedialog, ttk
 from pathlib import Path
-import subprocess
 from logviewer.parser import parse_bundle
+from logviewer.state import load_state, save_state, add_parsed_bundle, get_parsed_bundles, get_next_available_port
 
 class LogViewerApp:
     def __init__(self, root):
@@ -12,11 +13,12 @@ class LogViewerApp:
         self.root.title("LogViewer GUI")
         self.root.geometry("900x500")
 
-        self.port_base = 8000
+        self.state = load_state()
+        self.port_base = 8001
         self.running_servers = {}
-        self.analyzed_bundles = set()
 
         self.create_widgets()
+        self.load_previous_bundles()
 
     def create_widgets(self):
         title = tk.Label(self.root, text="LogViewer - Aruba Log Analysis GUI", font=("Helvetica", 18, "bold"), pady=10)
@@ -48,6 +50,12 @@ class LogViewerApp:
         self.status = tk.Label(self.root, text="Ready", anchor="w")
         self.status.pack(fill="x")
 
+    def load_previous_bundles(self):
+        parsed = get_parsed_bundles(self.state)
+        for bundle_path, meta in parsed.items():
+            if os.path.exists(bundle_path):
+                self.tree.insert("", "end", values=(bundle_path, "Analyzed"))
+
     def select_file(self):
         file = filedialog.askopenfilename(filetypes=[("Tar GZ Files", "*.tar.gz")])
         if file:
@@ -60,8 +68,11 @@ class LogViewerApp:
                 self.add_bundle(str(path))
 
     def add_bundle(self, filepath):
-        if filepath not in self.analyzed_bundles:
-            self.tree.insert("", "end", values=(filepath, "Pending"))
+        for row in self.tree.get_children():
+            if self.tree.item(row, "values")[0] == filepath:
+                return
+        analyzed = filepath in get_parsed_bundles(self.state)
+        self.tree.insert("", "end", values=(filepath, "Analyzed" if analyzed else "Pending"))
 
     def analyze_selected(self):
         for item in self.tree.selection():
@@ -73,9 +84,9 @@ class LogViewerApp:
         self.status.config(text=f"Analyzing {filepath}...")
         try:
             output_dir = f"{Path(filepath).stem}_log_analysis_results"
-            os.makedirs(output_dir, exist_ok=True)
-            parse_bundle(filepath, output_dir)
-            self.analyzed_bundles.add(filepath)
+            if not os.path.exists(os.path.join(output_dir, "index.html")):
+                parse_bundle(filepath, output_dir)
+            add_parsed_bundle(self.state, filepath, output_dir)
             self.tree.set(tree_id, column="status", value="Analyzed")
             self.status.config(text=f"Done analyzing: {filepath}")
         except Exception as e:
@@ -85,10 +96,16 @@ class LogViewerApp:
     def start_server(self):
         for item in self.tree.selection():
             filepath = self.tree.item(item, "values")[0]
-            output_dir = f"{Path(filepath).stem}_log_analysis_results"
-            port = self.get_next_available_port()
+            parsed = get_parsed_bundles(self.state).get(filepath)
+            if not parsed:
+                self.status.config(text="No parsed data available")
+                continue
+            output_dir = parsed["output_path"]
+            port = parsed.get("port") or get_next_available_port(self.state)
             proc = subprocess.Popen(["python3", "-m", "http.server", str(port), "--directory", output_dir])
             self.running_servers[filepath] = (proc, port)
+            parsed["port"] = port
+            add_parsed_bundle(self.state, filepath, output_dir, port)
             self.status.config(text=f"Started server on port {port} for {filepath}")
             os.system(f"xdg-open http://localhost:{port} 2>/dev/null &")
 
@@ -100,24 +117,19 @@ class LogViewerApp:
                 proc.terminate()
                 self.status.config(text=f"Stopped server on port {port} for {filepath}")
 
-    def get_next_available_port(self):
-        while any(p == self.port_base for _, p in self.running_servers.values()):
-            self.port_base += 1
-        return self.port_base
-
     def on_close(self):
         for proc, _ in self.running_servers.values():
             proc.terminate()
+        save_state(self.state)
         self.root.destroy()
+
 
 def launch_gui():
     root = tk.Tk()
     app = LogViewerApp(root)
     root.protocol("WM_DELETE_WINDOW", app.on_close)
     root.mainloop()
-    
+
+
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = LogViewerApp(root)
-    root.protocol("WM_DELETE_WINDOW", app.on_close)
-    root.mainloop()
+    launch_gui()
