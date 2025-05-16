@@ -6,7 +6,7 @@ The output is a structured HTML dashboard that allows you to search, filter, and
 
 ---
 
-## 🛠 Features
+##  Features
 
 -  Supports multiple Aruba log formats (event, critical, journalctl, etc.)
 -  Parses `.supportlog` files using `fastlogParser`
@@ -26,7 +26,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 
 cd LogViewer
 
-sudo pip install .
+pip install .
 
 
 
