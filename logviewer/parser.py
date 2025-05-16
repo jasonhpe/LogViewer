@@ -175,7 +175,7 @@ def save_text_file_summary(input_path, out_path):
     except Exception as e:
         print(f"❌ Failed to process {input_path}: {e}")
 
-def parse_bundle(bundle_path):
+def parse_bundle(bundle_path, output_dir):
     from jinja2 import Template
 
     # Output directory with bundle name
