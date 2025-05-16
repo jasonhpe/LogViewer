@@ -184,7 +184,8 @@ fetch('fastlog_index.json' + cacheBuster).then(res => res.json()).then(files => 
   }
 });
 
-fetch('diag_index.json' + cacheBuster).then(res => res.json()).then(files => {
+const file = select.value.replace(/\\//g, '_') + '_diagdump.txt' + cacheBuster;
+fetch(file)
   const select = document.getElementById("diag-select");
   files.forEach(file => {
     const opt = document.createElement("option");
