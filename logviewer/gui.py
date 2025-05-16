@@ -3,7 +3,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, ttk
 from pathlib import Path
-from parser import parse_bundle 
+from logviewer.parser import parse_bundle
 
 class LogViewerApp:
     def __init__(self, root):
