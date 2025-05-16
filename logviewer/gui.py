@@ -107,6 +107,12 @@ class LogViewerApp:
             proc.terminate()
         self.root.destroy()
 
+def launch_gui():
+    root = tk.Tk()
+    app = LogViewerApp(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_close)
+    root.mainloop()
+    
 if __name__ == "__main__":
     root = tk.Tk()
     app = LogViewerApp(root)
