@@ -20,8 +20,10 @@ The output is a structured HTML dashboard that allows you to search, filter, and
 
 ##  Usage
 
-git clone https://github.com/youruser/LogViewer.git
+git clone https://github.com/jasonhpe/LogViewer.git
+
 cd LogViewer
+
 pip install .
 
 
