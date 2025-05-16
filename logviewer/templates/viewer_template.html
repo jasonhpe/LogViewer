@@ -172,7 +172,7 @@ fetch('fastlog_index.json' + cacheBuster).then(res => res.json()).then(files => 
     select.appendChild(opt);
   });
   select.addEventListener("change", () => {
-    fetch(file = select.value + cacheBuster)
+    fetch(select.value + cacheBuster)
       .then(res => res.text())
       .then(content => {
         document.getElementById("fastlog-content").textContent = content;
@@ -184,8 +184,7 @@ fetch('fastlog_index.json' + cacheBuster).then(res => res.json()).then(files => 
   }
 });
 
-const file = select.value.replace(/\\//g, '_') + '_diagdump.txt' + cacheBuster;
-fetch(file)
+fetch('diag_index.json' + cacheBuster).then(res => res.json()).then(files => {
   const select = document.getElementById("diag-select");
   files.forEach(file => {
     const opt = document.createElement("option");
@@ -194,7 +193,7 @@ fetch(file)
     select.appendChild(opt);
   });
   select.addEventListener("change", () => {
-    fetch(select.value.replace(/\\//g, '_') + '_diagdump.txt' + cacheBuster)
+    fetch(file = file = select.value.replace(/\\\//g, '_') + '_diagdump.txt' + cacheBuster)
       .then(res => res.text())
       .then(content => {
         document.getElementById("diag-content").textContent = content;
