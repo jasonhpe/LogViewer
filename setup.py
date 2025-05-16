@@ -12,11 +12,11 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'LogViewer = cli:main'
+            'LogViewer = logviewer.cli:main'
         ]
     },
     package_data={
-        'LogViewer': ['templates/viewer_template.html']
+        'logviewer': ['templates/viewer_template.html']
     },
     author='Jason Rojas',
     description='Aruba LogViewer with GUI and web interface',
