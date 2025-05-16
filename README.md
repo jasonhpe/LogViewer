@@ -24,7 +24,7 @@ git clone https://github.com/jasonhpe/LogViewer.git
 
 cd LogViewer
 
-pip install .
+sudo pip install .
 
 
 
