@@ -142,7 +142,7 @@ def collect_showtech_and_diag(bundle_dir):
                 diag[rel_dir] = os.path.join(root, file)
     return showtech, diag, isp
 
-def split_showtech(showtech_path):
+def split_showtech(showtech_path, output_dir):
     sections = {}
     current = None
     buffer = []
@@ -175,26 +175,38 @@ def save_text_file_summary(input_path, out_path):
     except Exception as e:
         print(f"❌ Failed to process {input_path}: {e}")
 
-def parse_bundle(bundle_path, output_dir):
+def parse_bundle(bundle_path):
+    from jinja2 import Template
+
+    # Output directory with bundle name
+    bundle_name = Path(bundle_path).stem
+    output_dir = f"{bundle_name}_log_analysis_results"
+    os.makedirs(output_dir, exist_ok=True)
+
     bundle_dir = extract_bundle(bundle_path)
     if not bundle_dir:
         return None
 
+    # Collect logs
     logs = collect_event_logs(bundle_dir)
     logs.extend(collect_fastlog_entries(bundle_dir))
     logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
 
+    # Fastlogs (raw)
     fastlog_files = collect_fastlogs(bundle_dir)
+
+    # Write parsed logs
     with open(os.path.join(output_dir, "parsed_logs.json"), "w") as f:
         json.dump(logs, f, indent=2)
     with open(os.path.join(output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
 
+    # Collect and split showtech + diagnostics
     showtech_path, diag_dumps, isp_file = collect_showtech_and_diag(bundle_dir)
     if isp_file:
         shutil.copy(isp_file, os.path.join(output_dir, "isp.txt"))
     if showtech_path:
-        index = split_showtech(showtech_path)
+        index = split_showtech(showtech_path, output_dir)
         with open(os.path.join(output_dir, "showtech_index.json"), "w") as f:
             json.dump(index, f, indent=2)
     for name, path in diag_dumps.items():
@@ -203,4 +215,17 @@ def parse_bundle(bundle_path, output_dir):
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
-    return bundle_dir
+    # Generate HTML viewer
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "viewer_template.html")
+    with open(template_path, "r") as f:
+        html_template = Template(f.read())
+
+    html_filename = f"log_viewer_{datetime.now().strftime('%Y%m%d%H%M%S')}.html"
+    html_path = os.path.join(output_dir, html_filename)
+    with open(html_path, "w") as f:
+        f.write(html_template.render())
+
+    # Make it accessible as index.html
+    shutil.copy(html_path, os.path.join(output_dir, "index.html"))
+
+    return output_dir
