@@ -22,6 +22,8 @@ The output is a structured HTML dashboard that allows you to search, filter, and
 
 git clone https://github.com/jasonhpe/LogViewer.git
 
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+
 cd LogViewer
 
 sudo pip install .
