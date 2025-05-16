@@ -24,9 +24,9 @@ git clone https://github.com/jasonhpe/LogViewer.git
 
 cd LogViewer
 
-chmod +x __main__.py
+"chmod +x __main__.py"
 
-sudo ln -s "$PWD/__main__.py" /usr/local/bin/LogViewer
+"sudo ln -s "$PWD/__main__.py" /usr/local/bin/LogViewer"
 
 
 
