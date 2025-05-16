@@ -1,9 +1,9 @@
 import os
 import threading
-import subprocess
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, ttk
 from pathlib import Path
+from parser import parse_bundle 
 
 class LogViewerApp:
     def __init__(self, root):
@@ -71,18 +71,20 @@ class LogViewerApp:
     def run_analysis(self, filepath, tree_id):
         self.status.config(text=f"Analyzing {filepath}...")
         try:
-            subprocess.run(["LogViewer", filepath], check=True)
+            output_dir = f"log_analysis_results/{Path(filepath).stem}"
+            os.makedirs(output_dir, exist_ok=True)
+            parse_bundle(filepath, output_dir)
             self.analyzed_bundles.add(filepath)
             self.tree.set(tree_id, column="status", value="Analyzed")
             self.status.config(text=f"Done analyzing: {filepath}")
-        except subprocess.CalledProcessError:
+        except Exception as e:
             self.tree.set(tree_id, column="status", value="Error")
-            self.status.config(text=f"Failed to analyze {filepath}")
+            self.status.config(text=f"Failed to analyze {filepath}: {e}")
 
     def start_server(self):
         for item in self.tree.selection():
             filepath = self.tree.item(item, "values")[0]
-            output_dir = os.path.join("log_analysis_results")
+            output_dir = f"log_analysis_results/{Path(filepath).stem}"
             port = self.get_next_available_port()
             proc = subprocess.Popen(["python3", "-m", "http.server", str(port), "--directory", output_dir])
             self.running_servers[filepath] = (proc, port)
