@@ -193,7 +193,8 @@ fetch('diag_index.json' + cacheBuster).then(res => res.json()).then(files => {
     select.appendChild(opt);
   });
   select.addEventListener("change", () => {
-    const filename = select.value.replace(/\//g, '_') + '_diagdump.txt' + cacheBuster;
+    const flatName = select.value.replace(/\//g, '_');
+    const filename = 'feature_' + flatName + '_diagdump.txt' + cacheBuster;
     fetch(filename)
       .then(res => res.text())
       .then(content => {
