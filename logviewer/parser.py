@@ -5,20 +5,11 @@ import subprocess
 import json
 import shutil
 from datetime import datetime, timezone
-
-output_dir = "log_analysis_results"
-fastlog_output_dir = os.path.join(output_dir, "fastlogs")
-os.makedirs(output_dir, exist_ok=True)
-os.makedirs(fastlog_output_dir, exist_ok=True)
-
-patterns = [
-    re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+Event\|(?P<event_id>\d+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<message>.+)'),
-    re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<facility>\S+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<submodule>[^|]*)\|(?P<source>[^|]*)\|(?P<message>.+)'),
-    re.compile(r'(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+[\d:]{8})\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<message>.+)')
-]
+from pathlib import Path
+from jinja2 import Template
 
 def extract_bundle(path):
-    tmp_dir = os.path.join(output_dir, "tmp", os.path.basename(path).replace(".tar.gz", ""))
+    tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
     os.makedirs(tmp_dir, exist_ok=True)
     try:
         with tarfile.open(path, "r:gz") as tar:
@@ -37,6 +28,11 @@ def read_lines(path):
             return f.readlines()
 
 def parse_line(line):
+    patterns = [
+        re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+Event\|(?P<event_id>\d+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<message>.+)'),
+        re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<facility>\S+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<submodule>[^|]*)\|(?P<source>[^|]*)\|(?P<message>.+)'),
+        re.compile(r'(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+[\d:]{8})\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<message>.+)')
+    ]
     for pattern in patterns:
         match = pattern.match(line.strip())
         if match:
@@ -65,8 +61,10 @@ def collect_event_logs(bundle_dir):
                         logs.append(entry)
     return logs
 
-def collect_fastlogs(bundle_dir):
+def collect_fastlogs(bundle_dir, output_dir):
     fastlog_files = []
+    fastlog_output_dir = os.path.join(output_dir, "fastlogs")
+    os.makedirs(fastlog_output_dir, exist_ok=True)
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
             if fname.endswith(".supportlog"):
@@ -76,7 +74,7 @@ def collect_fastlogs(bundle_dir):
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
                     with open(out_file, "w") as f:
                         f.write(result.stdout)
-                    fastlog_files.append(fname + ".txt")
+                    fastlog_files.append("fastlogs/" + fname + ".txt")
                 except Exception as e:
                     print(f"⚠️ Failed to parse {fname}: {e}")
     return fastlog_files
@@ -146,14 +144,12 @@ def split_showtech(showtech_path, output_dir):
     sections = {}
     current = None
     buffer = []
-
     def flush():
         if current and buffer:
             fname = f"showtech_{current.replace(' ', '_').replace('/', '_')}.txt"
             with open(os.path.join(output_dir, fname), "w") as f:
                 f.writelines(buffer)
             sections[current] = fname
-
     with open(showtech_path, "r", errors='ignore') as f:
         for line in f:
             match = re.search(r'Command\s*:\s*show (.+)', line)
@@ -176,32 +172,21 @@ def save_text_file_summary(input_path, out_path):
         print(f"❌ Failed to process {input_path}: {e}")
 
 def parse_bundle(bundle_path, output_dir):
-    from jinja2 import Template
-
-    # Output directory with bundle name
-    bundle_name = Path(bundle_path).stem
-    output_dir = f"{bundle_name}_log_analysis_results"
     os.makedirs(output_dir, exist_ok=True)
-
     bundle_dir = extract_bundle(bundle_path)
     if not bundle_dir:
         return None
 
-    # Collect logs
     logs = collect_event_logs(bundle_dir)
     logs.extend(collect_fastlog_entries(bundle_dir))
     logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
 
-    # Fastlogs (raw)
-    fastlog_files = collect_fastlogs(bundle_dir)
-
-    # Write parsed logs
+    fastlog_files = collect_fastlogs(bundle_dir, output_dir)
     with open(os.path.join(output_dir, "parsed_logs.json"), "w") as f:
         json.dump(logs, f, indent=2)
     with open(os.path.join(output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
 
-    # Collect and split showtech + diagnostics
     showtech_path, diag_dumps, isp_file = collect_showtech_and_diag(bundle_dir)
     if isp_file:
         shutil.copy(isp_file, os.path.join(output_dir, "isp.txt"))
@@ -215,7 +200,7 @@ def parse_bundle(bundle_path, output_dir):
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
-    # Generate HTML viewer
+    # Generate HTML Viewer
     template_path = os.path.join(os.path.dirname(__file__), "templates", "viewer_template.html")
     with open(template_path, "r") as f:
         html_template = Template(f.read())
@@ -225,7 +210,5 @@ def parse_bundle(bundle_path, output_dir):
     with open(html_path, "w") as f:
         f.write(html_template.render())
 
-    # Make it accessible as index.html
     shutil.copy(html_path, os.path.join(output_dir, "index.html"))
-
     return output_dir
