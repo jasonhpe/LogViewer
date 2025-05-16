@@ -37,4 +37,7 @@ git pull
 
 pip install . --user --force-reinstall
 
+To uninstall
+pip uninstall LogViewer
+
 
