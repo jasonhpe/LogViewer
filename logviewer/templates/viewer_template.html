@@ -13,6 +13,7 @@
     .severity-LOG_ERR { background-color: #ffe5e5; border-left: 5px solid #dc3545; }
     .severity-LOG_WARN { background-color: #fff8e1; border-left: 5px solid #ffc107; }
     .severity-LOG_INFO { background-color: #e7f3fe; border-left: 5px solid #17a2b8; }
+    .severity-UNKNOWN { background-color: #f0f0f0; border-left: 5px solid #999; }
     pre { white-space: pre-wrap; word-wrap: break-word; }
     .panel-controls { margin-bottom: 1rem; }
     #isp-modal { display:none; position:fixed; top:10%; left:10%; width:80%; height:80%; background:#fff; border:2px solid #444; padding:20px; overflow:auto; z-index:1000 }
@@ -71,6 +72,18 @@
   </div>
 
 <script>
+function formatTimestamp(isoString) {
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  } catch {
+    return isoString;
+  }
+}
+
 let logs = [], allLogs = [], filteredLogs = [], currentPage = 1;
 const logsPerPage = 100;
 const processSet = new Set();
@@ -159,7 +172,7 @@ fetch('fastlog_index.json' + cacheBuster).then(res => res.json()).then(files => 
     select.appendChild(opt);
   });
   select.addEventListener("change", () => {
-    fetch('fastlogs/' + select.value + cacheBuster)
+    fetch(file = select.value + cacheBuster)
       .then(res => res.text())
       .then(content => {
         document.getElementById("fastlog-content").textContent = content;
@@ -228,3 +241,4 @@ function closeISP() {
 </script>
 </body>
 </html>
+
