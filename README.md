@@ -20,6 +20,7 @@ The output is a structured HTML dashboard that allows you to search, filter, and
 
 ##  Usage
 
+First Installation 
 git clone https://github.com/jasonhpe/LogViewer.git
 
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
@@ -28,5 +29,12 @@ cd LogViewer
 
 pip install .
 
+To update
+
+cd LogViewer
+
+git pull
+
+pip install . --user --force-reinstall
 
 
