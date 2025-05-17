@@ -92,9 +92,9 @@ def main():
 
     if args.command in ("analyze", "-a"):
     analyze_bundle(args.path)
-    elif args.command in ("list", "-l"):
+elif args.command in ("list", "-l"):
     list_bundles()
-    elif args.command in ("view", "-v"):
+elif args.command in ("view", "-v"):
     view_bundle(args.bundle)
     else:
         launch_gui()
