@@ -65,6 +65,7 @@ def collect_fastlogs(bundle_dir, output_dir):
     fastlog_files = []
     fastlog_output_dir = os.path.join(output_dir, "fastlogs")
     os.makedirs(fastlog_output_dir, exist_ok=True)
+
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
             if fname.endswith(".supportlog"):
@@ -74,9 +75,11 @@ def collect_fastlogs(bundle_dir, output_dir):
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
                     with open(out_file, "w") as f:
                         f.write(result.stdout)
-                    fastlog_files.append("fastlogs/" + fname + ".txt")
+                    # ✅ Only the filename, NOT prefixed with 'fastlogs/'
+                    fastlog_files.append(fname + ".txt")
                 except Exception as e:
                     print(f"⚠️ Failed to parse {fname}: {e}")
+
     return fastlog_files
 
 def collect_fastlog_entries(bundle_dir):
