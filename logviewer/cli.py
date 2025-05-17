@@ -71,7 +71,7 @@ def serve_bundle(bundle_name):
     bundle["port"] = port
     save_state(state)
 
-    print(f"🌐 Serving '{path}' at http://localhost:{port}")
+    print(f" Serving '{path}' at http://localhost:{port}")
     webbrowser.open(f"http://localhost:{port}/index.html")
     subprocess.run(["python3", "-m", "http.server", str(port), "--directory", path])
 
@@ -97,7 +97,7 @@ def main():
     elif args.command == "serve":
         serve_bundle(args.bundle)
     else:
-        parser.print_help()
+        launch_gui()
 
 
 if __name__ == "__main__":
