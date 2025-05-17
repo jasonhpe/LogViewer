@@ -18,15 +18,21 @@ from logviewer.state import (
 
 def analyze_bundle(bundle_path):
     if not os.path.isfile(bundle_path):
-        print(f"❌ File not found: {bundle_path}")
+        print(f" File not found: {bundle_path}")
         sys.exit(1)
 
     state = load_state()
     print(f"📦 Parsing: {bundle_path}...")
-    out_dir = parse_bundle(bundle_path)
+
+    # Set default output_dir based on bundle name
+    base_name = os.path.basename(bundle_path)
+    out_dir = os.path.abspath(f"{base_name}_log_analysis_results")
+
+    out_dir = parse_bundle(bundle_path, out_dir)
     if not out_dir:
         print("❌ Parsing failed.")
         return
+
     port = get_next_available_port(state)
     add_parsed_bundle(state, bundle_path, out_dir, port)
     print(f"✅ Parsed output saved to: {out_dir}")
