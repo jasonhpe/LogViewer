@@ -20,7 +20,7 @@ LogViewer/
 ├── README.md
 ├── DESIGN.md
 └── .logviewer_state.json # Automatically created; tracks bundle metadata
-'''
+```
 
 
 ---
