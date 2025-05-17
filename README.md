@@ -33,7 +33,7 @@ git clone https://github.com/jasonhpe/LogViewer.git
 cd LogViewer
 pip install . --user
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-```bash
+```
 
 🔁 Update
 ```bash
@@ -76,6 +76,8 @@ LogViewer view --bundle support1_log_analysis_results
 
 🗂 Output Structure
 
+```markdown
+```bash
 support1.tar.gz_log_analysis_results/
 ├── parsed_logs.json
 ├── fastlog_index.json
@@ -87,6 +89,8 @@ support1.tar.gz_log_analysis_results/
 ├── feature/         ← diagdumps (grouped)
 ├── showtech/        ← sectioned showtech
 └── log_viewer_TIMESTAMP.html
+```
+
 ✅ Requirements
 Python 3.7+
 
