@@ -25,6 +25,7 @@ The result is an **interactive HTML dashboard** with filter, search, timeline, a
 - ✅ CLI-Hybrid: Launch viewer from terminal
 - ✅ Auto-assigns and reuses HTTP ports per bundle
 
+---
 ## 🚀 Installation
 
 ```bash
@@ -33,8 +34,11 @@ cd LogViewer
 pip install . --user
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 
-🔁 Update
+---
 
+## 🔁 Update
+
+```bash
 cd LogViewer
 git pull
 pip install . --user --force-reinstall
