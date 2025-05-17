@@ -15,9 +15,16 @@ setup(
             'LogViewer = logviewer.cli:main'
         ]
     },
+    include_package_data=True,
     package_data={
         'logviewer': ['templates/viewer_template.html']
     },
     author='Jason Rojas',
     description='Aruba LogViewer with GUI and web interface',
+
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+    ],
+    python_requires='>=3.7',
 )
