@@ -15,7 +15,7 @@ setup(
             'LogViewer = logviewer.cli:main'
         ]
     },
-    include_package_data=True,
+
     package_data={
         'logviewer': ['templates/viewer_template.html']
     },
