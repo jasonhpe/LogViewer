@@ -1,4 +1,3 @@
-
 import argparse
 import os
 import sys
@@ -23,26 +22,27 @@ def analyze_bundle(bundle_path):
         sys.exit(1)
 
     state = load_state()
-    print(f"🔍 Parsing: {bundle_path}...")
+    print(f"📦 Parsing: {bundle_path}...")
     out_dir = parse_bundle(bundle_path)
     if not out_dir:
         print("❌ Parsing failed.")
         return
-
     port = get_next_available_port(state)
     add_parsed_bundle(state, bundle_path, out_dir, port)
     print(f"✅ Parsed output saved to: {out_dir}")
+
 
 def list_bundles():
     state = load_state()
     bundles = get_parsed_bundles(state)
     if not bundles:
-        print("ℹ️  No parsed bundles found.")
+        print("⚠️  No parsed bundles found.")
         return
 
-    print("📦 Parsed Bundles:")
+    print("📂 Parsed Bundles:")
     for idx, (src, meta) in enumerate(bundles.items(), 1):
         print(f"{idx}. {os.path.basename(src)} -> {meta['output_path']} (Port: {meta.get('port', 'Not assigned')})")
+
 
 def serve_bundle(bundle_name):
     state = load_state()
@@ -52,6 +52,7 @@ def serve_bundle(bundle_name):
         if not bundles:
             print("⚠️  No parsed bundles found.")
             return
+        # Sort by timestamp
         latest_entry = max(bundles.items(), key=lambda kv: kv[1].get("timestamp", ""))
         bundle = latest_entry[1]
     else:
@@ -74,6 +75,7 @@ def serve_bundle(bundle_name):
     webbrowser.open(f"http://localhost:{port}/index.html")
     subprocess.run(["python3", "-m", "http.server", str(port), "--directory", path])
 
+
 def main():
     parser = argparse.ArgumentParser(
         description=(
@@ -82,6 +84,7 @@ def main():
             "  LogViewer -a --path support1.tar.gz\n"
             "  LogViewer -l\n"
             "  LogViewer -v --bundle latest"
+            "  LogViewer -v --bundle <parsed bundle>"
         ),
         formatter_class=RawTextHelpFormatter
     )
@@ -94,7 +97,7 @@ def main():
         "--path",
         required=True,
         metavar="PATH",
-        help="Full path to the .tar.gz support bundle"
+        help="Full path to the .tar.gz support bundle (example: --path support1.tar.gz)"
     )
 
     # List
@@ -106,20 +109,20 @@ def main():
         "--bundle",
         required=True,
         metavar="NAME",
-        help="Bundle name to serve (or use 'latest')"
+        help="Bundle name to serve (use --bundle latest to serve most recent)"
     )
 
     args = parser.parse_args()
-    cmd = args.command
 
-    if cmd in ["analyze", "-a"]:
+    if args.command == "analyze":
         analyze_bundle(args.path)
-    elif cmd in ["list", "-l"]:
+    elif args.command == "list":
         list_bundles()
-    elif cmd in ["view", "-v"]:
+    elif args.command == "view":
         serve_bundle(args.bundle)
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()
