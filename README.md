@@ -34,5 +34,68 @@ cd LogViewer
 pip install . --user
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 
+🔁 Update
+bash
+Copy
+Edit
+cd LogViewer
+git pull
+pip install . --user --force-reinstall
+🧹 Uninstall
+bash
+Copy
+Edit
+pip uninstall LogViewer
+🕹️ CLI and GUI Usage
+Run LogViewer with no arguments to start the GUI:
 
+bash
+Copy
+Edit
+LogViewer
+Run LogViewer with --help to view available commands:
+
+bash
+Copy
+Edit
+LogViewer --help
+📦 Analyze a support bundle
+bash
+Copy
+Edit
+LogViewer analyze --path support1.tar.gz
+📋 List previously parsed bundles
+bash
+Copy
+Edit
+LogViewer list
+🌐 View a bundle in the browser
+bash
+Copy
+Edit
+LogViewer view --bundle latest
+LogViewer view --bundle support1_log_analysis_results
+ℹ️ Bundles are served on http://localhost:<auto-port> and cached for re-use.
+
+🗂 Output Structure
+pgsql
+Copy
+Edit
+support1.tar.gz_log_analysis_results/
+├── parsed_logs.json
+├── fastlog_index.json
+├── diag_index.json
+├── showtech_index.json
+├── isp.txt
+├── index.html
+├── fastlogs/
+├── feature/         ← diagdumps (grouped)
+├── showtech/        ← sectioned showtech
+└── log_viewer_TIMESTAMP.html
+✅ Requirements
+Python 3.7+
+
+fastlogParser must be available in your system PATH to parse .supportlog files
+
+Made with 💻 by @jasonhpe
 
