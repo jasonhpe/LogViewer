@@ -5,7 +5,7 @@ import subprocess
 import webbrowser
 from pathlib import Path
 from argparse import RawTextHelpFormatter
-
+import time
 from logviewer.parser import parse_bundle
 from logviewer.gui import launch_gui
 from logviewer.state import (
@@ -48,7 +48,7 @@ def list_bundles():
     for idx, (src, meta) in enumerate(bundles.items(), 1):
         print(f"{idx}. {os.path.basename(src)} -> {meta['output_path']} (Port: {meta.get('port', 'Not assigned')})")
 
-def serve_bundle(bundle_name):
+def view_bundle(bundle_name):
     state = load_state()
     bundles = get_parsed_bundles(state)
 
@@ -75,6 +75,8 @@ def serve_bundle(bundle_name):
     save_state(state)
 
     print(f"🌐 Serving '{path}' at http://localhost:{port}")
+    
+    time.sleep(1)
     webbrowser.open(f"http://localhost:{port}/index.html")
     subprocess.run(["python3", "-m", "http.server", str(port), "--directory", path])
 
@@ -108,7 +110,7 @@ def main():
         "--bundle",
         required=True,
         metavar="NAME",
-        help="Bundle name to serve (use --bundle latest to serve most recent)"
+        help="Bundle name to view (use --bundle latest to view most recent)"
     )
 
     args = parser.parse_args()
@@ -119,7 +121,7 @@ def main():
     elif cmd == "list":
         list_bundles()
     elif cmd == "view":
-        serve_bundle(args.bundle)
+        view_bundle(args.bundle)
     else:
         parser.print_help()
 
