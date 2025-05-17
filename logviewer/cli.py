@@ -31,7 +31,6 @@ def analyze_bundle(bundle_path):
     add_parsed_bundle(state, bundle_path, out_dir, port)
     print(f"✅ Parsed output saved to: {out_dir}")
 
-
 def list_bundles():
     state = load_state()
     bundles = get_parsed_bundles(state)
@@ -43,7 +42,6 @@ def list_bundles():
     for idx, (src, meta) in enumerate(bundles.items(), 1):
         print(f"{idx}. {os.path.basename(src)} -> {meta['output_path']} (Port: {meta.get('port', 'Not assigned')})")
 
-
 def serve_bundle(bundle_name):
     state = load_state()
     bundles = get_parsed_bundles(state)
@@ -52,7 +50,6 @@ def serve_bundle(bundle_name):
         if not bundles:
             print("⚠️  No parsed bundles found.")
             return
-        # Sort by timestamp
         latest_entry = max(bundles.items(), key=lambda kv: kv[1].get("timestamp", ""))
         bundle = latest_entry[1]
     else:
@@ -75,24 +72,22 @@ def serve_bundle(bundle_name):
     webbrowser.open(f"http://localhost:{port}/index.html")
     subprocess.run(["python3", "-m", "http.server", str(port), "--directory", path])
 
-
 def main():
     parser = argparse.ArgumentParser(
         description=(
             "LogViewer CLI - Analyze and view Aruba support bundles\n\n"
             "Usage examples:\n"
-            "  LogViewer -a --path support1.tar.gz\n"
-            "  LogViewer -l\n"
-            "  LogViewer -v --bundle latest"
-            "  LogViewer -v --bundle <parsed bundle>"
+            "  LogViewer analyze --path support1.tar.gz\n"
+            "  LogViewer list\n"
+            "  LogViewer view --bundle latest\n"
+            "  LogViewer view --bundle <parsed bundle>\n"
         ),
         formatter_class=RawTextHelpFormatter
     )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # Analyze
-    analyze = subparsers.add_parser("analyze", aliases=["-a"], help="Parse a new bundle (.tar.gz)")
+    analyze = subparsers.add_parser("analyze", help="Parse a new bundle (.tar.gz)")
     analyze.add_argument(
         "--path",
         required=True,
@@ -100,11 +95,9 @@ def main():
         help="Full path to the .tar.gz support bundle (example: --path support1.tar.gz)"
     )
 
-    # List
-    list_cmd = subparsers.add_parser("list", aliases=["-l"], help="List previously parsed bundles")
+    list_cmd = subparsers.add_parser("list", help="List previously parsed bundles")
 
-    # View
-    view = subparsers.add_parser("view", aliases=["-v"], help="Open the log viewer for a parsed bundle")
+    view = subparsers.add_parser("view", help="Open the log viewer for a parsed bundle")
     view.add_argument(
         "--bundle",
         required=True,
@@ -113,16 +106,16 @@ def main():
     )
 
     args = parser.parse_args()
+    cmd = args.command
 
-    if args.command == "analyze":
+    if cmd == "analyze":
         analyze_bundle(args.path)
-    elif args.command == "list":
+    elif cmd == "list":
         list_bundles()
-    elif args.command == "view":
+    elif cmd == "view":
         serve_bundle(args.bundle)
     else:
         parser.print_help()
-
 
 if __name__ == "__main__":
     main()
