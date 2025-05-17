@@ -77,7 +77,6 @@ LogViewer view --bundle support1_log_analysis_results
 🗂 Output Structure
 
 ```markdown
-```bash
 support1.tar.gz_log_analysis_results/
 ├── parsed_logs.json
 ├── fastlog_index.json
