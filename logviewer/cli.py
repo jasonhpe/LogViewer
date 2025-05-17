@@ -78,24 +78,24 @@ def view_bundle(bundle_name):
 
 def main():
     parser = argparse.ArgumentParser(description="LogViewer CLI")
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-    analyze = subparsers.add_parser("analyze", help="Parse a new bundle")
-    analyze.add_argument("--path", required=True, help="Path to .tar.gz bundle")
+    analyze = subparsers.add_parser("analyze", aliases=["-a"], help="Parse a new bundle (.tar.gz)")
+    analyze.add_argument("--path", required=True, help="Path to .tar.gz support bundle")
 
-    list_cmd = subparsers.add_parser("list", help="List parsed bundles")
+    list_cmd = subparsers.add_parser("list", aliases=["-l"], help="List previously parsed bundles")
 
-    view = subparsers.add_parser("view", help="Open the log viewer GUI for a parsed bundle")
+    view = subparsers.add_parser("view", aliases=["-v"], help="Open the log viewer for a parsed bundle")
     view.add_argument("--bundle", required=True, help="Bundle name or 'latest'")
 
     args = parser.parse_args()
 
-    if args.command == "analyze":
-        analyze_bundle(args.path)
-    elif args.command == "list":
-        list_bundles()
-    elif args.command == "view":
-        view_bundle(args.bundle)
+    if args.command in ("analyze", "-a"):
+    analyze_bundle(args.path)
+    elif args.command in ("list", "-l"):
+    list_bundles()
+    elif args.command in ("view", "-v"):
+    view_bundle(args.bundle)
     else:
         launch_gui()
 
