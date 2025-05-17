@@ -28,12 +28,12 @@ The result is an **interactive HTML dashboard** with filter, search, timeline, a
 ---
 ## 🚀 Installation
 
-'''bash
+```bash
 git clone https://github.com/jasonhpe/LogViewer.git
 cd LogViewer
 pip install . --user
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-'''bash
+```bash
 
 🔁 Update
 
