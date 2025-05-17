@@ -33,54 +33,49 @@ git clone https://github.com/jasonhpe/LogViewer.git
 cd LogViewer
 pip install . --user
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+```bash
 
 🔁 Update
-bash
-Copy
-Edit
+```bash
 cd LogViewer
 git pull
 pip install . --user --force-reinstall
+```bash
 🧹 Uninstall
-bash
-Copy
-Edit
+```bash
 pip uninstall LogViewer
+```bash
 🕹️ CLI and GUI Usage
+
 Run LogViewer with no arguments to start the GUI:
 
-bash
-Copy
-Edit
+```bash
 LogViewer
+```bash
+
 Run LogViewer with --help to view available commands:
 
-bash
-Copy
-Edit
+```bash
 LogViewer --help
+```bash
+
 📦 Analyze a support bundle
-bash
-Copy
-Edit
+```bash
 LogViewer analyze --path support1.tar.gz
+```bash
 📋 List previously parsed bundles
-bash
-Copy
-Edit
+```bash
 LogViewer list
+```bash
 🌐 View a bundle in the browser
-bash
-Copy
-Edit
+```bash
 LogViewer view --bundle latest
 LogViewer view --bundle support1_log_analysis_results
+```bash
 ℹ️ Bundles are served on http://localhost:<auto-port> and cached for re-use.
 
 🗂 Output Structure
-pgsql
-Copy
-Edit
+
 support1.tar.gz_log_analysis_results/
 ├── parsed_logs.json
 ├── fastlog_index.json
