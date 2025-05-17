@@ -172,7 +172,7 @@ fetch('fastlog_index.json' + cacheBuster).then(res => res.json()).then(files => 
     select.appendChild(opt);
   });
   select.addEventListener("change", () => {
-     fetch(select.value + cacheBuster)
+     fetch('fastlogs/' + select.value + cacheBuster)
       .then(res => res.text())
       .then(content => {
         document.getElementById("fastlog-content").textContent = content;
