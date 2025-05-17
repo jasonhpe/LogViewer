@@ -77,27 +77,45 @@ def view_bundle(bundle_name):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LogViewer CLI")
+    parser = argparse.ArgumentParser(
+        description="LogViewer CLI - Analyze and view Aruba support bundles"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # Analyze command (alias -a)
     analyze = subparsers.add_parser("analyze", aliases=["-a"], help="Parse a new bundle (.tar.gz)")
-    analyze.add_argument("--path", required=True, help="Path to .tar.gz support bundle")
+    analyze.add_argument(
+        "--path",
+        required=True,
+        metavar="PATH",
+        help="Full path to the .tar.gz support bundle (example: --path support1.tar.gz)"
+    )
 
+    # List command (alias -l)
     list_cmd = subparsers.add_parser("list", aliases=["-l"], help="List previously parsed bundles")
 
+    # View command (alias -v)
     view = subparsers.add_parser("view", aliases=["-v"], help="Open the log viewer for a parsed bundle")
-    view.add_argument("--bundle", required=True, help="Bundle name or 'latest'")
+    view.add_argument(
+        "--bundle",
+        required=True,
+        metavar="NAME",
+        help="Bundle name to serve (use --bundle latest to serve most recent)"
+    )
 
     args = parser.parse_args()
+    cmd = args.command
 
-    if args.command in ("analyze", "-a"):
+    if cmd in ["analyze", "-a"]:
         analyze_bundle(args.path)
-    elif args.command in ("list", "-l"):
+    elif cmd in ["list", "-l"]:
         list_bundles()
-    elif args.command in ("view", "-v"):
-        view_bundle(args.bundle)
+    elif cmd in ["view", "-v"]:
+        serve_bundle(args.bundle)
     else:
-        launch_gui()
+        parser.print_help()
+
+
 
 
 if __name__ == "__main__":
