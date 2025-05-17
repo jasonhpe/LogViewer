@@ -44,7 +44,7 @@ def list_bundles():
         print(f"{idx}. {os.path.basename(src)} -> {meta['output_path']} (Port: {meta.get('port', 'Not assigned')})")
 
 
-def serve_bundle(bundle_name):
+def view_bundle(bundle_name):
     state = load_state()
     bundles = get_parsed_bundles(state)
 
@@ -85,8 +85,8 @@ def main():
 
     list_cmd = subparsers.add_parser("list", help="List parsed bundles")
 
-    serve = subparsers.add_parser("serve", help="Serve previously parsed bundle")
-    serve.add_argument("--bundle", required=True, help="Bundle name or 'latest'")
+    view = subparsers.add_parser("view", help="Open the log viewer GUI for a parsed bundle")
+    view.add_argument("--bundle", required=True, help="Bundle name or 'latest'")
 
     args = parser.parse_args()
 
@@ -94,8 +94,8 @@ def main():
         analyze_bundle(args.path)
     elif args.command == "list":
         list_bundles()
-    elif args.command == "serve":
-        serve_bundle(args.bundle)
+    elif args.command == "view":
+        view_bundle(args.bundle)
     else:
         launch_gui()
 
