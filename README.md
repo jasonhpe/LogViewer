@@ -26,7 +26,6 @@ The result is an **interactive HTML dashboard** with filter, search, timeline, a
 - ✅ Auto-assigns and reuses HTTP ports per bundle
 
 ---
-
 ## 🚀 Installation
 
 ```bash
@@ -34,49 +33,41 @@ git clone https://github.com/jasonhpe/LogViewer.git
 cd LogViewer
 pip install . --user
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+
 🔁 Update
-bash
-Copy
-Edit
+
 cd LogViewer
 git pull
 pip install . --user --force-reinstall
-🧹 Uninstall
-bash
-Copy
-Edit
-pip uninstall LogViewer
-🕹️ CLI Usage
-Run LogViewer with no arguments to view available commands:
 
-bash
-Copy
-Edit
+🧹 Uninstall
+pip uninstall LogViewer
+
+🕹️ CLI and GUI Usage
+
+Run LogViewer with no arguments to start the GUI.
+
 LogViewer
+
+Run LogViewer --help to view available commands:
+
+LogViewer --help
+
 Analyze a support bundle
-bash
-Copy
-Edit
+
 LogViewer analyze --path support1.tar.gz
-List previously parsed bundles
-bash
-Copy
-Edit
+
 LogViewer list
+
 View a bundle in the browser
-bash
-Copy
-Edit
+
 LogViewer view --bundle latest           # Launches the most recent
 LogViewer view --bundle support1_log_analysis_results
+
 ℹ️ Bundles are served on http://localhost:<auto-port> and cached for re-use.
 
 🗂 Output Structure
-After analyzing, the output is placed in:
 
-pgsql
-Copy
-Edit
 support1.tar.gz_log_analysis_results/
 ├── parsed_logs.json
 ├── fastlog_index.json
@@ -88,10 +79,12 @@ support1.tar.gz_log_analysis_results/
 ├── feature/         ← diagdumps (grouped)
 ├── showtech/        ← sectioned showtech
 └── log_viewer_TIMESTAMP.html
+
 ✅ Requirements
 Python 3.7+
 
 fastlogParser must be in your system PATH for .supportlog parsing
+
 
 Made with 💻 by @jasonhpe
 
