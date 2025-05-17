@@ -147,12 +147,18 @@ def split_showtech(showtech_path, output_dir):
     sections = {}
     current = None
     buffer = []
+
+    showtech_dir = os.path.join(output_dir, "showtech")
+    os.makedirs(showtech_dir, exist_ok=True)
+
     def flush():
         if current and buffer:
             fname = f"showtech_{current.replace(' ', '_').replace('/', '_')}.txt"
-            with open(os.path.join(output_dir, fname), "w") as f:
+            full_path = os.path.join(showtech_dir, fname)
+            with open(full_path, "w") as f:
                 f.writelines(buffer)
-            sections[current] = fname
+            sections[current] = os.path.join("showtech", fname)
+
     with open(showtech_path, "r", errors='ignore') as f:
         for line in f:
             match = re.search(r'Command\s*:\s*show (.+)', line)
@@ -197,13 +203,17 @@ def parse_bundle(bundle_path, output_dir):
         index = split_showtech(showtech_path, output_dir)
         with open(os.path.join(output_dir, "showtech_index.json"), "w") as f:
             json.dump(index, f, indent=2)
+
+    diag_dir = os.path.join(output_dir, "feature")
+    os.makedirs(diag_dir, exist_ok=True)
     for name, path in diag_dumps.items():
         out_name = name.replace(os.sep, "_") + "_diagdump.txt"
-        save_text_file_summary(path, os.path.join(output_dir, out_name))
+        full_path = os.path.join(diag_dir, out_name)
+        save_text_file_summary(path, full_path)
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
-    # Generate HTML Viewer
+    # Generate HTML viewer
     template_path = os.path.join(os.path.dirname(__file__), "templates", "viewer_template.html")
     with open(template_path, "r") as f:
         html_template = Template(f.read())
