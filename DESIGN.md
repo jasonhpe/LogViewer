@@ -88,9 +88,8 @@ This allows viewing the HTML dashboard in the browser at:
 ##  Why the CLI & GUI Hybrid?
 CLI is efficient for automation and scripting
 
-GUI is user-friendly for analysts and NOC teams
+GUI is user-friendly.
 
-Shared state and code paths enable a unified experience
 ---
 
 ## 🤝 Contributing
