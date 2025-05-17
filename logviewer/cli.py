@@ -5,7 +5,7 @@ import sys
 import subprocess
 import webbrowser
 from pathlib import Path
-
+from argparse import RawTextHelpFormatter
 from logviewer.parser import parse_bundle
 from logviewer.gui import launch_gui
 from logviewer.state import (
@@ -14,6 +14,16 @@ from logviewer.state import (
     add_parsed_bundle,
     get_parsed_bundles,
     get_next_available_port,
+)
+parser = argparse.ArgumentParser(
+    description=(
+        
+        "Usage examples:\n"
+        "  LogViewer -a --path support1.tar.gz\n"
+        "  LogViewer -l\n"
+        "  LogViewer -v --bundle latest\n"
+    ),
+    formatter_class=argparse.RawTextHelpFormatter
 )
 
 def analyze_bundle(bundle_path):
