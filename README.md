@@ -34,13 +34,5 @@ cd LogViewer
 pip install . --user
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 
----
-
-## 🔁 Update
-
-```bash
-cd LogViewer
-git pull
-pip install . --user --force-reinstall
 
 
