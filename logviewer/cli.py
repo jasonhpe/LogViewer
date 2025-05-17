@@ -23,7 +23,7 @@ def analyze_bundle(bundle_path):
 
     state = load_state()
     print(f"📦 Parsing: {bundle_path}...")
-    out_dir = parse_bundle(bundle_path, output_dir=None)
+    out_dir = parse_bundle(bundle_path) 
     if not out_dir:
         print("❌ Parsing failed.")
         return
