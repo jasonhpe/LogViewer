@@ -49,23 +49,29 @@ def list_bundles():
         print(f"{idx}. {os.path.basename(src)} -> {meta['output_path']} (Port: {meta.get('port', 'Not assigned')})")
 
 def view_bundle(bundle_name):
+    from pathlib import Path
+
     state = load_state()
     bundles = get_parsed_bundles(state)
 
+    if not bundles:
+        print("❌ No parsed bundles found.")
+        return
+
     if bundle_name == "latest":
-        if not bundles:
-            print("⚠️  No parsed bundles found.")
-            return
+        # Get the latest by timestamp
         latest_entry = max(bundles.items(), key=lambda kv: kv[1].get("timestamp", ""))
         bundle = latest_entry[1]
     else:
+        # Try to match by substring in bundle name
         matched = None
-        for meta in bundles.values():
-            if os.path.basename(meta["output_path"]).startswith(bundle_name):
+        for src, meta in bundles.items():
+            if bundle_name in os.path.basename(meta["output_path"]):
                 matched = meta
                 break
         if not matched:
-            print(f"❌ Bundle '{bundle_name}' not found in state.")
+            print(f"❌ Bundle '{bundle_name}' not found.")
+            print("👉 Use 'LogViewer list' to see available bundles.")
             return
         bundle = matched
 
@@ -74,9 +80,13 @@ def view_bundle(bundle_name):
     bundle["port"] = port
     save_state(state)
 
+    index_path = os.path.join(path, "index.html")
+    if not os.path.isfile(index_path):
+        print(f"❌ index.html not found in {path}")
+        print("📌 Make sure this bundle was parsed successfully.")
+        return
+
     print(f"🌐 Serving '{path}' at http://localhost:{port}")
-    
-    time.sleep(1)
     webbrowser.open(f"http://localhost:{port}/index.html")
     subprocess.run(["python3", "-m", "http.server", str(port), "--directory", path])
 
