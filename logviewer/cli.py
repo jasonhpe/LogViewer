@@ -87,6 +87,7 @@ def view_bundle(bundle_name):
         return
 
     print(f"🌐 Serving '{path}' at http://localhost:{port}")
+    time.sleep(3)
     webbrowser.open(f"http://localhost:{port}/index.html")
     subprocess.run(["python3", "-m", "http.server", str(port), "--directory", path])
 
