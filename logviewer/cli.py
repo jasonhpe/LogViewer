@@ -5,9 +5,16 @@ import sys
 import subprocess
 import webbrowser
 from pathlib import Path
-from logviewer import parse_bundle
+
+from logviewer.parser import parse_bundle
 from logviewer.gui import launch_gui
-from logviewer.state import load_state, save_state, add_parsed_bundle, get_parsed_bundles, get_next_available_port
+from logviewer.state import (
+    load_state,
+    save_state,
+    add_parsed_bundle,
+    get_parsed_bundles,
+    get_next_available_port,
+)
 
 def analyze_bundle(bundle_path):
     if not os.path.isfile(bundle_path):
