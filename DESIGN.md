@@ -83,12 +83,15 @@ This allows viewing the HTML dashboard in the browser at:
 
 [http://localhost:<port>]
 
-🙋 Why the CLI & GUI Hybrid?
+---
+
+##  Why the CLI & GUI Hybrid?
 CLI is efficient for automation and scripting
 
 GUI is user-friendly for analysts and NOC teams
 
 Shared state and code paths enable a unified experience
+---
 
-🤝 Contributing
+## 🤝 Contributing
 If you want to add a feature or fix a bug, please read this document first and ensure you align with the internal design principles.
