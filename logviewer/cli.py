@@ -91,11 +91,11 @@ def main():
     args = parser.parse_args()
 
     if args.command in ("analyze", "-a"):
-    analyze_bundle(args.path)
-elif args.command in ("list", "-l"):
-    list_bundles()
-elif args.command in ("view", "-v"):
-    view_bundle(args.bundle)
+        analyze_bundle(args.path)
+    elif args.command in ("list", "-l"):
+        list_bundles()
+    elif args.command in ("view", "-v"):
+        view_bundle(args.bundle)
     else:
         launch_gui()
 
