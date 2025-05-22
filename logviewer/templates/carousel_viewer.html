@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>LogViewer Carousel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+    }
+    h2 {
+      margin: 1rem;
+      text-align: center;
+      position: relative;
+    }
+    .help-button {
+      position: absolute;
+      top: 1rem;
+      right: 2rem;
+      background: #17a2b8;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .carousel-container {
+      display: flex;
+      overflow-x: auto;
+      padding: 0.5rem;
+      background: #eaeaea;
+      border-bottom: 1px solid #ccc;
+    }
+    .carousel-button {
+      flex: 0 0 auto;
+      margin-right: 1rem;
+      padding: 0.5rem 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .carousel-button.active {
+      background: #0056b3;
+    }
+    iframe {
+      width: 100%;
+      height: 90vh;
+      border: none;
+    }
+    /* Help Modal */
+    #help-modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      top: 10%;
+      left: 10%;
+      width: 80%;
+      height: 80%;
+      background: white;
+      border: 2px solid #666;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+    }
+    #help-modal-close {
+      position: absolute;
+      top: 10px;
+      right: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #dc3545;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2 id="bundle-title">Log Viewer</h2>
+  <button class="help-button" onclick="openHelp()">?</button>
+
+  <div class="carousel-container" id="carousel"></div>
+  <iframe id="viewer-frame" src=""></iframe>
+
+  <div id="help-modal">
+    <span id="help-modal-close" onclick="closeHelp()">&times;</span>
+    <div id="help-content"><em>Loading help content...</em></div>
+  </div>
+
+  <script>
+    // Load bundle list and set up viewer
+    fetch("bundle_list.json")
+      .then(res => res.json())
+      .then(bundles => {
+        const carousel = document.getElementById("carousel");
+        const title = document.getElementById("bundle-title");
+        const frame = document.getElementById("viewer-frame");
+
+        function loadBundle(bundle, button) {
+          frame.src = bundle.url;
+          title.textContent = "Log Viewer - " + bundle.name;
+          document.querySelectorAll(".carousel-button").forEach(btn => btn.classList.remove("active"));
+          button.classList.add("active");
+        }
+
+        bundles.forEach((bundle, idx) => {
+          const btn = document.createElement("button");
+          btn.className = "carousel-button";
+          btn.textContent = bundle.name;
+          btn.onclick = () => loadBundle(bundle, btn);
+          carousel.appendChild(btn);
+          if (idx === 0) loadBundle(bundle, btn);
+        });
+      });
+
+    // Help Modal Logic
+    function openHelp() {
+      fetch("README.md")
+        .then(res => res.text())
+        .then(md => {
+          const html = marked.parse(md);
+          document.getElementById("help-content").innerHTML = html;
+          document.getElementById("help-modal").style.display = "block";
+        })
+        .catch(() => {
+          document.getElementById("help-content").innerText = "README.md not found.";
+        });
+    }
+
+    function closeHelp() {
+      document.getElementById("help-modal").style.display = "none";
+    }
+  </script>
+</body>
+</html>
