@@ -106,7 +106,9 @@
 
   <div class="tab-content mt-3">
     <div class="tab-pane fade show active" id="logs">
-      <canvas id="error-chart" height="100"></canvas>
+      <div style="background: white; padding: 10px; border: 1px solid #ddd;">
+        <canvas id="error-chart" style="width: 100%; height: 300px; margin-bottom: 20px;"></canvas>
+      </div>
       <div id="log-container"></div>
       <div id="pagination-controls" class="mt-3">
         <button class="btn btn-sm btn-outline-secondary" onclick="prevPage()">Previous</button>
@@ -199,6 +201,7 @@ fetch('parsed_logs.json' + cacheBuster)
 
   
 function buildErrorTimeline(entries) {
+  console.log("Found error timestamps:", labels, data);
   const errorCounts = {};
   entries.forEach(log => {
     if (log.severity === 'LOG_ERR') {
