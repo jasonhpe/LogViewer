@@ -6,8 +6,21 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+import importlib.util
+import logviewer
 from jinja2 import Template
 
+def find_readme():
+    try:
+        import logviewer
+        root = Path(logviewer.__file__).resolve().parent
+        readme = root / "README.md"
+        if readme.exists():
+            return readme
+    except Exception as e:
+        print(f"❌ Could not locate README.md: {e}")
+    return None
+    
 def extract_bundle(path):
     tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
     os.makedirs(tmp_dir, exist_ok=True)
@@ -75,7 +88,7 @@ def collect_fastlogs(bundle_dir, output_dir):
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
                     with open(out_file, "w") as f:
                         f.write(result.stdout)
-                    # ✅ Only the filename, NOT prefixed with 'fastlogs/'
+                    #  Only the filename, NOT prefixed with 'fastlogs/'
                     fastlog_files.append(fname + ".txt")
                 except Exception as e:
                     print(f"⚠️ Failed to parse {fname}: {e}")
@@ -178,7 +191,7 @@ def save_text_file_summary(input_path, out_path):
         with open(out_path, 'w') as out:
             out.write(content)
     except Exception as e:
-        print(f"❌ Failed to process {input_path}: {e}")
+        print(f" Failed to process {input_path}: {e}")
 
 def parse_bundle(bundle_path, output_dir):
     os.makedirs(output_dir, exist_ok=True)
@@ -223,5 +236,35 @@ def parse_bundle(bundle_path, output_dir):
     with open(html_path, "w") as f:
         f.write(html_template.render())
 
-    shutil.copy(html_path, os.path.join(output_dir, "index.html"))
+        # Inject bundle name into <title>
+
+    index_path = os.path.join(output_dir, "index.html")
+    shutil.copy(html_path, index_path)
+    if os.path.exists(index_path):
+        bundle_title = os.path.basename(output_dir).replace(".tar.gz_log_analysis_results", "").replace("_", " ")
+        with open(index_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        updated = content.replace(
+            '<title id="dynamic-title">Log Viewer</title>',
+            f'<title>{bundle_title} - Log Viewer</title>'
+        )
+        with open(index_path, "w", encoding="utf-8") as f:
+            f.write(updated)
+
+    readme_path = find_readme()
+    if readme_path:
+        try:
+            shutil.copy(readme_path, Path(output_dir) / "README.md")
+            print(f"📄 Copied README.md from {readme_path} to {output_dir}")
+        except Exception as e:
+            print(f"❌ Failed to copy README.md: {e}")
+    else:
+        print("⚠️ README.md not found using find_readme()")
+        
+    try:
+        shutil.rmtree(bundle_dir)
+        print(f" Cleaned up temporary directory: {bundle_dir}")
+    except Exception as e:
+        print(f" Failed to clean temporary directory {bundle_dir}: {e}")
+        
     return output_dir
