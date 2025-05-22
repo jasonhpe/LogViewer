@@ -4,11 +4,13 @@ from setuptools import setup, find_packages
 
 setup(
     name='LogViewer',
-    version='2.0.0',
+    version='1.0.0',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
         'jinja2',
+
+      
     ],
     entry_points={
         'console_scripts': [
@@ -17,8 +19,11 @@ setup(
     },
 
     package_data={
-        'logviewer': ['templates/viewer_template.html']
+        'logviewer': ['templates/*.html', 'README.md']
     },
+
+    
+  
     author='Jason Rojas',
     description='Aruba LogViewer with GUI and web interface',
 
