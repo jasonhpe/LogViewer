@@ -197,6 +197,7 @@ fetch('parsed_logs.json' + cacheBuster)
       filter.appendChild(opt);
     });
     renderLogs(filteredLogs);
+    updateErrorChart(filteredLogs); 
   });
 
   
