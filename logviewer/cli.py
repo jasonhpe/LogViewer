@@ -16,7 +16,7 @@ from logviewer.state import (
     get_next_available_port,
 )
 
-def analyze_bundle(bundle_path):
+def analyze_bundle(bundle_path, open_after=False):
     if not os.path.isfile(bundle_path):
         print(f"❌ File not found: {bundle_path}")
         sys.exit(1)
@@ -34,6 +34,10 @@ def analyze_bundle(bundle_path):
     port = get_next_available_port(state)
     add_parsed_bundle(state, bundle_path, out_dir, port)
     print(f"✅ Parsed output saved to: {out_dir}")
+
+    if open_after:
+        print("🔍 Launching viewer...")
+        view_bundle(os.path.basename(out_dir))
 
 def list_bundles():
     state = load_state()
@@ -97,15 +101,27 @@ def main():
         description="LogViewer CLI - Analyze and view Aruba support bundles\n\n"
                     "Usage examples:\n"
                     "  LogViewer analyze --path support1.tar.gz\n"
+                    "  LogViewer analyze --path support1.tar.gz --open\n"
                     "  LogViewer list\n"
                     "  LogViewer view --bundle latest\n"
                     "  LogViewer view --bundle support.files.123456",
         formatter_class=argparse.RawTextHelpFormatter
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
 
     analyze = subparsers.add_parser("analyze", help="Parse a new bundle (.tar.gz)")
-    analyze.add_argument("--path", required=True, metavar="PATH", help="Path to .tar.gz support bundle")
+    analyze.add_argument(
+        "--path",
+        required=True,
+        metavar="PATH",
+        help="Path to .tar.gz support bundle",
+    )
+    analyze.add_argument(
+        "--open",
+        action="store_true",
+        help="Open parsed bundle in browser after parsing"
+    )
+    
 
     list_cmd = subparsers.add_parser("list", help="List previously parsed bundles")
 
@@ -115,13 +131,13 @@ def main():
     args = parser.parse_args()
 
     if args.command == "analyze":
-        analyze_bundle(args.path)
+        analyze_bundle(args.path, open_after=args.open)
     elif args.command == "list":
         list_bundles()
     elif args.command == "view":
         view_bundle(args.bundle)
     else:
-        parser.print_help()
+        launch_gui()
 
 if __name__ == "__main__":
     main()
