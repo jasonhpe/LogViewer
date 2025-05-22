@@ -201,7 +201,7 @@ fetch('parsed_logs.json' + cacheBuster)
 
   
 function buildErrorTimeline(entries) {
-  console.log("Found error timestamps:", labels, data);
+  
   const errorCounts = {};
   entries.forEach(log => {
     if (log.severity === 'LOG_ERR') {
@@ -214,6 +214,9 @@ function buildErrorTimeline(entries) {
   const labels = sortedKeys.map(k => k.replace('T', ' '));
   const data = sortedKeys.map(k => errorCounts[k]);
 
+  console.log("Found error timestamps:", labels, data);
+  console.log("📊 Chart labels:", labels);
+  console.log("📈 Chart data:", data);
   return { labels, data };
 }
 
