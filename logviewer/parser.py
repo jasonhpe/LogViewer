@@ -6,12 +6,12 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+import tempfile
 import importlib.util
 import logviewer
 
 def find_readme():
     try:
-        import logviewer
         root = Path(logviewer.__file__).resolve().parent
         readme = root / "README.md"
         if readme.exists():
@@ -19,6 +19,20 @@ def find_readme():
     except Exception as e:
         print(f"❌ Could not locate README.md: {e}")
     return None
+
+def get_fastlog_parser():
+    source_path = os.path.join(os.path.dirname(__file__), "fastlogParser")
+    if not os.path.exists(source_path):
+        raise FileNotFoundError(f"❌ fastlogParser not found at {source_path}")
+    if "site-packages" in source_path or not os.access(source_path, os.X_OK):
+        temp_exec = os.path.join(tempfile.gettempdir(), "fastlogParser")
+        if not os.path.exists(temp_exec):
+            shutil.copy2(source_path, temp_exec)
+            os.chmod(temp_exec, 0o755)
+            print(f"✅ Copied fastlogParser to temp path and made it executable: {temp_exec}")
+        return temp_exec
+    else:
+        return source_path
 
 def extract_bundle(path):
     tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
@@ -74,14 +88,10 @@ def collect_event_logs(bundle_dir):
     return logs
 
 def collect_fastlogs(bundle_dir, output_dir):
-    fastlog_path = os.path.join(os.path.dirname(__file__), "fastlogParser")
+    fastlog_path = get_fastlog_parser()
     fastlog_files = []
     fastlog_output_dir = os.path.join(output_dir, "fastlogs")
     os.makedirs(fastlog_output_dir, exist_ok=True)
-
-    if not os.path.exists(fastlog_path):
-        print(f"❌ fastlogParser not found at {fastlog_path}")
-        return []
 
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
@@ -99,12 +109,8 @@ def collect_fastlogs(bundle_dir, output_dir):
     return fastlog_files
 
 def collect_fastlog_entries(bundle_dir):
-    fastlog_path = os.path.join(os.path.dirname(__file__), "fastlogParser")
+    fastlog_path = get_fastlog_parser()
     entries = []
-
-    if not os.path.exists(fastlog_path):
-        print(f"❌ fastlogParser not found at {fastlog_path}")
-        return []
 
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
@@ -252,6 +258,7 @@ def parse_bundle(bundle_path, output_dir):
         print(f" Failed to clean temporary directory {bundle_dir}: {e}")
 
     return output_dir
+
 
 
 
