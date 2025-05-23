@@ -39,16 +39,18 @@ def get_fastlog_parser():
     elif system == "Windows":
         local_path = Path(tempfile.gettempdir()) / exec_name
         if not local_path.exists():
-            packaged_path = Path(__file__).resolve().parent / exec_name
+            packaged_path = root / exec_name
             if not packaged_path.exists():
                 raise FileNotFoundError(f"fastlogParser not found at {packaged_path}")
             shutil.copy2(packaged_path, local_path)
 
-        # Convert to WSL path
         drive, rest = os.path.splitdrive(str(local_path))
         rest_fixed = rest.replace("\\", "/")
         wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
         return ["wsl", wsl_path]
+
+    else:
+        raise RuntimeError(f"Unsupported platform: {system}")
 
     else:
         raise RuntimeError(f"Unsupported platform: {system}")
@@ -91,10 +93,13 @@ def read_lines(path):
 
 def read_lines(path):
     if os.path.isdir(path):
-        journal_cmd = ["journalctl", "-D", path, "--no-pager"]
         if platform.system() == "Windows":
-            wsl_path = f"/mnt/c{path.replace(':', '').replace('\\\\', '/').replace('\\', '/')}"
+            drive, rest = os.path.splitdrive(path)
+            rest_fixed = rest.replace("\\", "/")
+            wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
             journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
+        else:
+            journal_cmd = ["journalctl", "-D", path, "--no-pager"]
         try:
             result = subprocess.run(journal_cmd, stdout=subprocess.PIPE, text=True)
             return result.stdout.splitlines()
@@ -145,6 +150,10 @@ def collect_event_logs(bundle_dir):
                         logs.append(entry)
     return logs
 
+def translate_path_for_wsl(path):
+    drive, rest = os.path.splitdrive(path)
+    return f"/mnt/{drive[0].lower()}{rest.replace('\\', '/')}"
+
 def collect_fastlogs(bundle_dir, output_dir):
     fastlog_cmd = get_fastlog_parser()
     fastlog_files = []
@@ -154,7 +163,11 @@ def collect_fastlogs(bundle_dir, output_dir):
         for fname in files:
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
-                cmd = fastlog_cmd + ["-v", full_path] if isinstance(fastlog_cmd, list) else [fastlog_cmd, "-v", full_path]
+                if isinstance(fastlog_cmd, list):
+                    input_path = translate_path_for_wsl(full_path)
+                    cmd = fastlog_cmd + ["-v", input_path]
+                else:
+                    cmd = [fastlog_cmd, "-v", full_path]
                 try:
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
@@ -173,7 +186,11 @@ def collect_fastlog_entries(bundle_dir):
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
                 process_name = os.path.basename(fname).replace(".supportlog", "")
-                cmd = fastlog_cmd + ["-v", full_path] if isinstance(fastlog_cmd, list) else [fastlog_cmd, "-v", full_path]
+                if isinstance(fastlog_cmd, list):
+                    input_path = translate_path_for_wsl(full_path)
+                    cmd = fastlog_cmd + ["-v", input_path]
+                else:
+                    cmd = [fastlog_cmd, "-v", full_path]
                 try:
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     lines = result.stdout.splitlines()
