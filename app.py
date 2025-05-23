@@ -171,6 +171,16 @@ def render_showtech(path, key_prefix="default"):
         content = f.read()
     st.text_area("ShowTech Output", content, height=500, key=f"showtech_output_{key_prefix}")
 
+def render_isp_modal(path, key_prefix="default"):
+    isp_file = os.path.join(path, "isp.txt")
+    if not os.path.exists(isp_file):
+        return
+    with open(isp_file) as f:
+        isp_data = f.read()
+
+    with st.expander("🌐 ISP Summary (from isp.txt)", expanded=False):
+        st.text_area("Parsed ISP Data", isp_data, height=300, key=f"isp_data_{key_prefix}")
+        
 # --- Main Rendering Logic ---
 if MODE == "single":
     path = config.get("bundle_path")
@@ -184,12 +194,14 @@ if MODE == "single":
         tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
         with tab1:
             render_bundle_view(df, bundle_key="single")
+            render_isp_modal(path, key_prefix="single")
         with tab2:
             render_fastlogs(path, key_prefix="single")
         with tab3:
             render_diag(path, key_prefix="single")
         with tab4:
             render_showtech(path, key_prefix="single")
+            
 
 elif MODE == "carousel":
     bundles = config.get("bundle_list", [])
@@ -208,6 +220,7 @@ elif MODE == "carousel":
                 tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
                 with tab1:
                     render_bundle_view(df, bundle_key=bundle["name"])
+                    render_isp_modal(bundle["path"], key_prefix=bundle["name"])
                 with tab2:
                     render_fastlogs(bundle["path"], key_prefix=bundle["name"])
                 with tab3:
