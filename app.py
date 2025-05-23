@@ -48,21 +48,22 @@ def apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_da
         ]
     return filtered_df
 
-def render_bundle_view(df):
+def render_bundle_view(df, bundle_key):
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
-        proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()))
+        proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()), key=f"proc_filter_{bundle_key}")
     with col2:
-        keyword = st.text_input("Keyword Search")
+        keyword = st.text_input("Keyword Search", key=f"keyword_{bundle_key}")
     with col3:
-        include_fastlogs = st.checkbox("Include Fastlogs", value=True)
+        include_fastlogs = st.checkbox("Include Fastlogs", value=True, key=f"include_fastlogs_{bundle_key}")
 
     if "timestamp" in df.columns:
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors='coerce')
         min_date = df["timestamp_dt"].min().to_pydatetime()
         max_date = df["timestamp_dt"].max().to_pydatetime()
         start_date, end_date = st.slider("Time Range", min_value=min_date, max_value=max_date,
-                                         value=(min_date, max_date), format="YYYY-MM-DD HH:mm")
+                                         value=(min_date, max_date), format="YYYY-MM-DD HH:mm",
+                                         key=f"date_slider_{bundle_key}")
     else:
         start_date, end_date = None, None
 
@@ -79,7 +80,8 @@ def render_bundle_view(df):
 
     logs_per_page = 100
     total_pages = (len(filtered_df) + logs_per_page - 1) // logs_per_page
-    current_page = st.number_input("Page", min_value=1, max_value=max(1, total_pages), value=1)
+    current_page = st.number_input("Page", min_value=1, max_value=max(1, total_pages), value=1,
+                                   key=f"page_num_{bundle_key}")
 
     start = (current_page - 1) * logs_per_page
     end = start + logs_per_page
@@ -106,7 +108,8 @@ def render_bundle_view(df):
     else:
         st.warning("No logs to display.")
 
-    st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv")
+    st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv",
+                       key=f"download_btn_{bundle_key}")
 
 # --- Main Rendering Logic ---
 if MODE == "single":
@@ -118,7 +121,7 @@ if MODE == "single":
     if df.empty:
         st.warning("No logs found in parsed bundle.")
     else:
-        render_bundle_view(df)
+        render_bundle_view(df, bundle_key="single")
 
 elif MODE == "carousel":
     bundles = config.get("bundle_list", [])
@@ -133,6 +136,7 @@ elif MODE == "carousel":
             if df.empty:
                 st.warning("No logs found in parsed bundle.")
             else:
-                render_bundle_view(df)
+                render_bundle_view(df, bundle_key=bundle["name"])
 else:
     st.error("Invalid mode in config.json")
+
