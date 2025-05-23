@@ -1,4 +1,3 @@
-import io
 import streamlit as st 
 import pandas as pd
 import json
@@ -49,7 +48,6 @@ def apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_da
     return filtered_df
 
 def render_bundle_view(df, bundle_key):
-    st.write(f"🔍 DEBUG: Rendering Logs for bundle: {bundle_key}")
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()), key=f"proc_filter_{bundle_key}")
@@ -72,7 +70,7 @@ def render_bundle_view(df, bundle_key):
 
     st.subheader("📈 Errors per Hour")
     if "severity" in filtered_df.columns:
-        error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR'].copy()
+        error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR']
         if not error_logs.empty:
             error_logs['hour'] = error_logs['timestamp_dt'].dt.strftime("%Y-%m-%d %H")
             chart_data = error_logs.groupby('hour').size().rename("count").reset_index()
@@ -112,33 +110,24 @@ def render_bundle_view(df, bundle_key):
     else:
         st.warning("No logs to display.")
 
-    export_data = filtered_df.to_string(index=False)
+    st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv",
+                       key=f"download_btn_{bundle_key}")
 
-    st.download_button(
-        "📤 Export Filtered Logs",
-        data=export_data,
-        file_name="filtered_logs.txt",
-        mime="text/plain",
-        key=f"download_btn_{bundle_key}"
-    )
-
-def render_fastlogs(path, bundle_key="default"):
-    st.write(f"🧪 DEBUG: Rendering fastlogs for {bundle_key}")
+def render_fastlogs(path):
     fastlog_dir = os.path.join(path, "fastlogs")
     if not os.path.exists(fastlog_dir):
         st.info("No fastlog directory found.")
         return
-    files = [f for f in os.listdir(fastlog_dir) if f.endswith(".supportlog.txt")]
+    files = [f for f in os.listdir(fastlog_dir) if f.endswith(".txt")]
     if not files:
-        st.info("No fastlog .supportlog.txt files found.")
+        st.info("No fastlog files found.")
         return
-    selected = st.selectbox("Select fastlog file", files, key=f"fastlog_file_{bundle_key}")
+    selected = st.selectbox("Select fastlog file", files)
     with open(os.path.join(fastlog_dir, selected)) as f:
         content = f.read()
-    st.text_area("Fastlog Output", content, height=500, key=f"fastlog_output_{bundle_key}")
+    st.text_area("Fastlog Output", content, height=500)
 
-def render_diag(path, bundle_key="default"):
-    st.write(f"🧪 DEBUG: Rendering diag for {bundle_key}")
+def render_diag(path):
     diag_dir = os.path.join(path, "feature")
     if not os.path.exists(diag_dir):
         st.info("No diag directory found.")
@@ -147,13 +136,12 @@ def render_diag(path, bundle_key="default"):
     if not files:
         st.info("No diag files found.")
         return
-    selected = st.selectbox("Select diagdump file", files, key=f"diag_file_{bundle_key}")
+    selected = st.selectbox("Select diagdump file", files)
     with open(os.path.join(diag_dir, selected)) as f:
         content = f.read()
-    st.text_area("Diag Dump Output", content, height=500, key=f"diag_output_{bundle_key}")
+    st.text_area("Diag Dump Output", content, height=500)
 
-def render_showtech(path, bundle_key="default"):
-    st.write(f"🧪 DEBUG: Rendering showtech for {bundle_key}")
+def render_showtech(path):
     showtech_dir = os.path.join(path, "showtech")
     if not os.path.exists(showtech_dir):
         st.info("No showtech directory found.")
@@ -162,12 +150,12 @@ def render_showtech(path, bundle_key="default"):
     if not files:
         st.info("No showtech files found.")
         return
-    selected = st.selectbox("Select showtech file", files, key=f"showtech_file_{bundle_key}")
+    selected = st.selectbox("Select showtech file", files)
     with open(os.path.join(showtech_dir, selected)) as f:
         content = f.read()
-    st.text_area("ShowTech Output", content, height=500, key=f"showtech_output_{bundle_key}")
+    st.text_area("ShowTech Output", content, height=500)
 
-# Main logic
+# --- Main Rendering Logic ---
 if MODE == "single":
     path = config.get("bundle_path")
     if not path or not os.path.exists(path):
@@ -181,11 +169,11 @@ if MODE == "single":
         with tab1:
             render_bundle_view(df, bundle_key="single")
         with tab2:
-            render_fastlogs(path, bundle_key="single")
+            render_fastlogs(path)
         with tab3:
-            render_diag(path, bundle_key="single")
+            render_diag(path)
         with tab4:
-            render_showtech(path, bundle_key="single")
+            render_showtech(path)
 
 elif MODE == "carousel":
     bundles = config.get("bundle_list", [])
@@ -200,16 +188,15 @@ elif MODE == "carousel":
             df = load_parsed_logs(bundle["path"])
             if df.empty:
                 st.warning("No logs found in parsed bundle.")
-                continue
-
-            subtabs = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
-            with subtabs[0]:
-                render_bundle_view(df, bundle_key=bundle["name"])
-            with subtabs[1]:
-                render_fastlogs(bundle["path"], bundle_key=bundle["name"])
-            with subtabs[2]:
-                render_diag(bundle["path"], bundle_key=bundle["name"])
-            with subtabs[3]:
-                render_showtech(bundle["path"], bundle_key=bundle["name"])
+            else:
+                tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+                with tab1:
+                    render_bundle_view(df, bundle_key=bundle["name"])
+                with tab2:
+                    render_fastlogs(bundle["path"])
+                with tab3:
+                    render_diag(bundle["path"])
+                with tab4:
+                    render_showtech(bundle["path"])
 else:
     st.error("Invalid mode in config.json")
