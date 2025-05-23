@@ -44,16 +44,14 @@ def get_fastlog_parser():
                 raise FileNotFoundError(f"fastlogParser not found at {packaged_path}")
             shutil.copy2(packaged_path, local_path)
 
+        # Convert path to WSL-compatible format
         drive, rest = os.path.splitdrive(str(local_path))
         rest_fixed = rest.replace("\\", "/")
         wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
         return ["wsl", wsl_path]
 
-    else:
-        raise RuntimeError(f"Unsupported platform: {system}")
+    raise RuntimeError(f"Unsupported platform: {system}")
 
-    else:
-        raise RuntimeError(f"Unsupported platform: {system}")
 
 def extract_bundle(path):
     tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
@@ -152,7 +150,8 @@ def collect_event_logs(bundle_dir):
 
 def translate_path_for_wsl(path):
     drive, rest = os.path.splitdrive(path)
-    return f"/mnt/{drive[0].lower()}{rest.replace('\\', '/')}"
+    rest_fixed = rest.replace("\\", "/")
+    return f"/mnt/{drive[0].lower()}{rest_fixed}"
 
 def collect_fastlogs(bundle_dir, output_dir):
     fastlog_cmd = get_fastlog_parser()
