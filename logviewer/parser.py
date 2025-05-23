@@ -10,6 +10,7 @@ from pathlib import Path
 import tempfile
 import importlib.util
 import logviewer
+import traceback
 
 def find_readme():
     try:
@@ -129,6 +130,8 @@ def collect_event_logs(bundle_dir):
 
 def translate_path_for_wsl(path):
     drive, rest = os.path.splitdrive(path)
+    if not drive or len(drive) < 2:
+        raise ValueError(f"Invalid path for WSL translation: '{path}'")
     rest_fixed = rest.replace("\\", "/")
     return f"/mnt/{drive[0].lower()}{rest_fixed}"
 
@@ -142,7 +145,9 @@ def collect_fastlogs(bundle_dir, output_dir):
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
                 if isinstance(fastlog_cmd, list):
+                    print(f"🪵 Translating to WSL: {full_path}")
                     input_path = translate_path_for_wsl(full_path)
+                    print(f"✅ Translated: {input_path}")
                     cmd = fastlog_cmd + ["-v", input_path]
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
@@ -153,6 +158,7 @@ def collect_fastlogs(bundle_dir, output_dir):
                         f.write(result.stdout)
                     fastlog_files.append(fname + ".txt")
                 except Exception as e:
+                    traceback.print_exc()
                     print(f"⚠️ Failed to parse {fname}: {e}")
     return fastlog_files
 
@@ -165,7 +171,9 @@ def collect_fastlog_entries(bundle_dir):
                 full_path = os.path.join(root, fname)
                 process_name = os.path.basename(fname).replace(".supportlog", "")
                 if isinstance(fastlog_cmd, list):
+                    print(f"🪵 Translating to WSL: {full_path}")
                     input_path = translate_path_for_wsl(full_path)
+                    print(f"✅ Translated: {input_path}")
                     cmd = fastlog_cmd + ["-v", input_path]
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
@@ -205,6 +213,7 @@ def collect_fastlog_entries(bundle_dir):
                             "source": "fastlog"
                         })
                 except Exception as e:
+                    traceback.print_exc()
                     print(f"⚠️ Failed to extract fastlog entries from {fname}: {e}")
     return entries
 
