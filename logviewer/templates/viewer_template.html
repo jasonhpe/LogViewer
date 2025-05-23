@@ -180,11 +180,18 @@ function initTimestampSlider(minDate, maxDate) {
     }
   });
 
-  slider.noUiSlider.on('update', function(values) {
-    selectedFrom = new Date(+values[0]);
-    selectedTo = new Date(+values[1]);
-    document.getElementById("slider-range-label").textContent =
-      `${selectedFrom.toISOString().slice(0,16).replace('T', ' ')} → ${selectedTo.toISOString().slice(0,16).replace('T', ' ')}`;
+  slider.noUiSlider.on('update', function (values) {
+    const fromMs = Number(values[0]);
+    const toMs = Number(values[1]);
+
+    if (!isNaN(fromMs) && !isNaN(toMs)) {
+      selectedFrom = new Date(fromMs);
+      selectedTo = new Date(toMs);
+      document.getElementById("slider-range-label").textContent =
+        `${selectedFrom.toISOString().slice(0, 16).replace('T', ' ')} → ${selectedTo.toISOString().slice(0, 16).replace('T', ' ')}`;
+    } else {
+      console.warn("❌ Invalid timestamp values from slider:", values);
+    }
   });
 }
   
