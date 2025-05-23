@@ -79,7 +79,7 @@ During the installation, you just need to add this directory to your Windows PAT
  
 1. Copy the this path
 
-C:\Users\<your username>\AppData\Roaming\Python\Python313\Scripts
+C:\Users\<add your WS username here>\AppData\Roaming\Python\Python313\Scripts
 
 3. Open Environment Variables
    
@@ -98,7 +98,7 @@ Click New
 
 Paste:
 
-C:\Users\rojasja\AppData\Roaming\Python\Python313\Scripts
+C:\Users\<add your WS username here>\AppData\Roaming\Python\Python313\Scripts
 
 Click OK to close all dialogs
 
