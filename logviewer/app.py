@@ -35,19 +35,20 @@ def apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_da
     return filtered_df
 
 def render_logs_tab(df):
-    with st.sidebar:
-        st.header("🔍 Filters")
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
         proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()))
+    with col2:
         keyword = st.text_input("Keyword Search")
+    with col3:
         include_fastlogs = st.checkbox("Include Fastlogs", value=True)
 
     if "timestamp" in df.columns:
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors='coerce')
         min_date = df["timestamp_dt"].min().to_pydatetime()
         max_date = df["timestamp_dt"].max().to_pydatetime()
-        with st.sidebar:
-            start_date, end_date = st.slider("Time Range", min_value=min_date, max_value=max_date,
-                                             value=(min_date, max_date), format="YYYY-MM-DD HH:mm")
+        start_date, end_date = st.slider("Time Range", min_value=min_date, max_value=max_date,
+                                         value=(min_date, max_date), format="YYYY-MM-DD HH:mm")
     else:
         start_date, end_date = None, None
 
