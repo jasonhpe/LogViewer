@@ -73,6 +73,38 @@ More: https://aka.ms/wslinstall
 
 Once installed, LogViewer will automatically use WSL to invoke `fastlogParser` from Windows.
 
+During the installation, you just need to add this directory to your Windows PATH so you can run LogViewer, streamlit, and other installed scripts from any terminal.
+
+ Step-by-Step: Add to PATH on Windows
+ 
+1. Copy the this path
+
+C:\Users\<your username>\AppData\Roaming\Python\Python313\Scripts
+
+3. Open Environment Variables
+   
+Press Win + S → search for “Environment Variables”
+
+Click “Edit the system environment variables”
+
+In the System Properties window, click “Environment Variables…”
+
+3. Add to your user PATH
+Under User variables, find the one called Path
+
+Click Edit
+
+Click New
+
+Paste:
+
+C:\Users\rojasja\AppData\Roaming\Python\Python313\Scripts
+
+Click OK to close all dialogs
+
+4. Restart PowerShell or CMD
+This ensures it reloads the updated PATH.
+
 ---
 
 ## 🔄 Update
