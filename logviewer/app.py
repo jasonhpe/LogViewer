@@ -1,24 +1,32 @@
-try:
-    import streamlit
-except ImportError:
-    print("\u274c streamlit is not installed. Please install it manually for Viewer support. Use 'sudo apt install streamlit pandas'")
-    exit(1)
-
 import streamlit as st
 import pandas as pd
 import json
 import os
 from datetime import datetime
+from pathlib import Path
+
+st.set_page_config(layout="wide", page_title="LogViewer")
+st.title("📋 Log Viewer Dashboard")
+
+# Load config to determine mode
+CONFIG_FILE = "config.json"
+if not os.path.exists(CONFIG_FILE):
+    st.error("Missing config.json! Cannot continue.")
+    st.stop()
+
+with open(CONFIG_FILE) as f:
+    config = json.load(f)
+
+MODE = config.get("mode")
 
 @st.cache_data
-def load_logs():
-    try:
-        with open("parsed_logs.json") as f:
-            data = json.load(f)
-        return pd.DataFrame(data)
-    except Exception as e:
-        st.error(f"Failed to load logs: {e}")
+def load_parsed_logs(path):
+    log_path = os.path.join(path, "parsed_logs.json")
+    if not os.path.exists(log_path):
         return pd.DataFrame()
+    with open(log_path) as f:
+        data = json.load(f)
+    return pd.DataFrame(data)
 
 def format_timestamp(ts):
     try:
@@ -40,7 +48,7 @@ def apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_da
         ]
     return filtered_df
 
-def render_logs_tab(df):
+def render_bundle_view(df):
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()))
@@ -100,34 +108,33 @@ def render_logs_tab(df):
 
     st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv")
 
-def render_file_viewer_tab(folder, label, file_extension=".txt"):
-    st.subheader(label)
-    files = [f for f in os.listdir(folder) if f.endswith(file_extension)]
-    if files:
-        selected = st.selectbox(f"Select {label} file", files)
-        with open(os.path.join(folder, selected)) as f:
-            content = f.read()
-        st.text_area(f"{label} Output", content, height=500)
+# --- Main Rendering Logic ---
+if MODE == "single":
+    path = config.get("bundle_path")
+    if not path or not os.path.exists(path):
+        st.error("Invalid or missing bundle_path in config.json")
+        st.stop()
+    df = load_parsed_logs(path)
+    if df.empty:
+        st.warning("No logs found in parsed bundle.")
     else:
-        st.info(f"No {label.lower()} files found in ./{folder}")
+        render_bundle_view(df)
 
-# --- Streamlit Layout ---
-st.set_page_config(layout="wide", page_title="LogViewer")
-st.title("📋 Log Viewer Dashboard")
+elif MODE == "carousel":
+    bundles = config.get("bundle_list", [])
+    if not bundles:
+        st.error("No bundle_list found in config.json")
+        st.stop()
 
-tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+    tabs = st.tabs([b["name"] for b in bundles])
+    for i, bundle in enumerate(bundles):
+        with tabs[i]:
+            df = load_parsed_logs(bundle["path"])
+            if df.empty:
+                st.warning("No logs found in parsed bundle.")
+            else:
+                render_bundle_view(df)
+else:
+    st.error("Invalid mode in config.json")
 
-with tab1:
-    df = load_logs()
-    if not df.empty:
-        render_logs_tab(df)
-
-with tab2:
-    render_file_viewer_tab("fastlogs", "⚡ Fastlogs", ".supportlog.txt")
-
-with tab3:
-    render_file_viewer_tab("feature", "🛠️ Diag Dumps", ".txt")
-
-with tab4:
-    render_file_viewer_tab("showtech", "📄 ShowTech Output", ".txt")
 
