@@ -20,34 +20,7 @@ def format_timestamp(ts):
     except:
         return ts
 
-st.set_page_config(layout="wide", page_title="LogViewer")
-st.title("📋 Log Viewer Dashboard")
-
-tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
-
-with tab1:
-    df = load_logs()
-    if df.empty:
-        st.stop()
-
-    col1, col2, col3 = st.columns([2, 2, 1])
-    with col1:
-        proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()))
-    with col2:
-        keyword = st.text_input("Keyword Search")
-    with col3:
-        include_fastlogs = st.checkbox("Include Fastlogs", value=True)
-
-    if "timestamp" in df.columns:
-        df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors='coerce')
-        min_date = df["timestamp_dt"].min().to_pydatetime()
-        max_date = df["timestamp_dt"].max().to_pydatetime()
-        start_date, end_date = st.slider("Time Range", min_value=min_date, max_value=max_date,
-                                         value=(min_date, max_date), format="YYYY-MM-DD HH:mm")
-    else:
-        start_date, end_date = None, None
-
-    # Filtering
+def apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_date):
     filtered_df = df.copy()
     if proc_filter != "All":
         filtered_df = filtered_df[filtered_df['process'] == proc_filter]
@@ -59,6 +32,26 @@ with tab1:
         filtered_df = filtered_df[
             (filtered_df["timestamp_dt"] >= start_date) & (filtered_df["timestamp_dt"] <= end_date)
         ]
+    return filtered_df
+
+def render_logs_tab(df):
+    with st.sidebar:
+        st.header("🔍 Filters")
+        proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()))
+        keyword = st.text_input("Keyword Search")
+        include_fastlogs = st.checkbox("Include Fastlogs", value=True)
+
+    if "timestamp" in df.columns:
+        df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors='coerce')
+        min_date = df["timestamp_dt"].min().to_pydatetime()
+        max_date = df["timestamp_dt"].max().to_pydatetime()
+        with st.sidebar:
+            start_date, end_date = st.slider("Time Range", min_value=min_date, max_value=max_date,
+                                             value=(min_date, max_date), format="YYYY-MM-DD HH:mm")
+    else:
+        start_date, end_date = None, None
+
+    filtered_df = apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_date)
 
     st.subheader("📈 Errors per Hour")
     error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR']
@@ -80,57 +73,54 @@ with tab1:
     st.subheader(f"📝 Logs (Page {current_page}/{total_pages})")
     if not page_df.empty:
         page_df["timestamp"] = page_df["timestamp"].apply(format_timestamp)
+
         def color_severity(val):
             color = ''
             if val == 'LOG_ERR':
-                color = 'background-color: #f8d7da'  # light red
+                color = 'background-color: #f8d7da'
             elif val == 'LOG_WARN':
-                color = 'background-color: #fff3cd'  # light yellow
+                color = 'background-color: #fff3cd'
             elif val == 'LOG_INFO':
-                color = 'background-color: #d1ecf1'  # light blue
+                color = 'background-color: #d1ecf1'
             return color
 
-    styled_df = page_df[["timestamp", "process", "message", "severity"]].reset_index(drop=True).style.applymap(
-        color_severity, subset=["severity"]
-    )
-    st.dataframe(styled_df, height=400, use_container_width=True)
-
-        
-        else:
-            st.warning("No logs to display.")
+        styled_df = page_df[["timestamp", "process", "message", "severity"]].reset_index(drop=True).style.applymap(
+            color_severity, subset=["severity"]
+        )
+        st.dataframe(styled_df, height=400, use_container_width=True)
+    else:
+        st.warning("No logs to display.")
 
     st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv")
 
-with tab2:
-    st.subheader("⚡ Fastlogs")
-    fastlog_files = [f for f in os.listdir("fastlogs") if f.endswith(".supportlog.txt")]
-    if fastlog_files:
-        selected = st.selectbox("Select fastlog file", fastlog_files)
-        with open(os.path.join("fastlogs", selected)) as f:
+def render_file_viewer_tab(folder, label, file_extension=".txt"):
+    st.subheader(label)
+    files = [f for f in os.listdir(folder) if f.endswith(file_extension)]
+    if files:
+        selected = st.selectbox(f"Select {label} file", files)
+        with open(os.path.join(folder, selected)) as f:
             content = f.read()
-        st.text_area("Fastlog Output", content, height=500)
+        st.text_area(f"{label} Output", content, height=500)
     else:
-        st.info("No fastlog files found in ./fastlogs")
+        st.info(f"No {label.lower()} files found in ./{folder}")
+
+# --- Streamlit Layout ---
+st.set_page_config(layout="wide", page_title="LogViewer")
+st.title("📋 Log Viewer Dashboard")
+
+tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+
+with tab1:
+    df = load_logs()
+    if not df.empty:
+        render_logs_tab(df)
+
+with tab2:
+    render_file_viewer_tab("fastlogs", "⚡ Fastlogs", ".supportlog.txt")
 
 with tab3:
-    st.subheader("🛠️ Diag Dumps")
-    diag_files = [f for f in os.listdir("feature") if f.endswith(".txt")]
-    if diag_files:
-        selected = st.selectbox("Select diagdump file", diag_files)
-        with open(os.path.join("feature", selected)) as f:
-            content = f.read()
-        st.text_area("Diag Dump Output", content, height=500)
-    else:
-        st.info("No diagdump files found in ./feature")
+    render_file_viewer_tab("feature", "🛠️ Diag Dumps", ".txt")
 
 with tab4:
-    st.subheader("📄 ShowTech Output")
-    showtech_files = [f for f in os.listdir("showtech") if f.endswith(".txt")]
-    if showtech_files:
-        selected = st.selectbox("Select ShowTech file", showtech_files)
-        with open(os.path.join("showtech", selected)) as f:
-            content = f.read()
-        st.text_area("ShowTech Output", content, height=500)
-    else:
-        st.info("No showtech files found in ./showtech")
+    render_file_viewer_tab("showtech", "📄 ShowTech Output", ".txt")
 
