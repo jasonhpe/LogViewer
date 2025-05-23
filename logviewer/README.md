@@ -42,8 +42,6 @@ Go to https://github.hpe.com/settings/tokens
 
 Create a fine-scoped PAT with expiration
 
-•	Go to https://github.hpe.com/settings/tokens
-•	Create your own fine-scoped PAT with expiration
               Then   git clone https://github.hpe.com/jason-sanchez/LogViewer.git
 
 Then use it via Git credential manager, GitHub CLI, or manual prompt on clone
