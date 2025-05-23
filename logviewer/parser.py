@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 import importlib.util
 import logviewer
-from jinja2 import Template
 
 def find_readme():
     try:
@@ -20,7 +19,7 @@ def find_readme():
     except Exception as e:
         print(f"❌ Could not locate README.md: {e}")
     return None
-    
+
 def extract_bundle(path):
     tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
     os.makedirs(tmp_dir, exist_ok=True)
@@ -75,20 +74,24 @@ def collect_event_logs(bundle_dir):
     return logs
 
 def collect_fastlogs(bundle_dir, output_dir):
+    fastlog_path = os.path.join(os.path.dirname(__file__), "fastlogParser")
     fastlog_files = []
     fastlog_output_dir = os.path.join(output_dir, "fastlogs")
     os.makedirs(fastlog_output_dir, exist_ok=True)
+
+    if not os.path.exists(fastlog_path):
+        print(f"❌ fastlogParser not found at {fastlog_path}")
+        return []
 
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
                 try:
-                    result = subprocess.run(["fastlogParser", "-v", full_path], stdout=subprocess.PIPE, text=True)
+                    result = subprocess.run([fastlog_path, "-v", full_path], stdout=subprocess.PIPE, text=True)
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
                     with open(out_file, "w") as f:
                         f.write(result.stdout)
-                    #  Only the filename, NOT prefixed with 'fastlogs/'
                     fastlog_files.append(fname + ".txt")
                 except Exception as e:
                     print(f"⚠️ Failed to parse {fname}: {e}")
@@ -96,14 +99,20 @@ def collect_fastlogs(bundle_dir, output_dir):
     return fastlog_files
 
 def collect_fastlog_entries(bundle_dir):
+    fastlog_path = os.path.join(os.path.dirname(__file__), "fastlogParser")
     entries = []
+
+    if not os.path.exists(fastlog_path):
+        print(f"❌ fastlogParser not found at {fastlog_path}")
+        return []
+
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
                 process_name = os.path.basename(fname).replace(".supportlog", "")
                 try:
-                    result = subprocess.run(["fastlogParser", "-v", full_path], stdout=subprocess.PIPE, text=True)
+                    result = subprocess.run([fastlog_path, "-v", full_path], stdout=subprocess.PIPE, text=True)
                     lines = result.stdout.splitlines()
                     buffer = []
                     timestamp = None
@@ -226,31 +235,6 @@ def parse_bundle(bundle_path, output_dir):
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
-    # Generate HTML viewer
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "viewer_template.html")
-    with open(template_path, "r") as f:
-        html_template = Template(f.read())
-
-    html_filename = f"log_viewer_{datetime.now().strftime('%Y%m%d%H%M%S')}.html"
-    html_path = os.path.join(output_dir, html_filename)
-    with open(html_path, "w") as f:
-        f.write(html_template.render())
-
-        # Inject bundle name into <title>
-
-    index_path = os.path.join(output_dir, "index.html")
-    shutil.copy(html_path, index_path)
-    if os.path.exists(index_path):
-        bundle_title = os.path.basename(output_dir).replace(".tar.gz_log_analysis_results", "").replace("_", " ")
-        with open(index_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        updated = content.replace(
-            '<title id="dynamic-title">Log Viewer</title>',
-            f'<title>{bundle_title} - Log Viewer</title>'
-        )
-        with open(index_path, "w", encoding="utf-8") as f:
-            f.write(updated)
-
     readme_path = find_readme()
     if readme_path:
         try:
@@ -260,11 +244,17 @@ def parse_bundle(bundle_path, output_dir):
             print(f"❌ Failed to copy README.md: {e}")
     else:
         print("⚠️ README.md not found using find_readme()")
-        
+
     try:
         shutil.rmtree(bundle_dir)
         print(f" Cleaned up temporary directory: {bundle_dir}")
     except Exception as e:
         print(f" Failed to clean temporary directory {bundle_dir}: {e}")
-        
+
     return output_dir
+
+
+
+
+
+
