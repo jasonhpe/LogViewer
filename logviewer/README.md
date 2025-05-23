@@ -77,9 +77,9 @@ During the installation, you just need to add this directory to your Windows PAT
 
  Step-by-Step: Add to PATH on Windows
  
-1. Copy the this path
+1. Copy this to the path
 
-C:\Users\<add your WS username here>\AppData\Roaming\Python\Python313\Scripts
+%USERPROFILE%\AppData\Roaming\Python\Python313\Scripts
 
 3. Open Environment Variables
    
@@ -90,15 +90,12 @@ Click “Edit the system environment variables”
 In the System Properties window, click “Environment Variables…”
 
 3. Add to your user PATH
+4. 
 Under User variables, find the one called Path
-
-Click Edit
-
-Click New
 
 Paste:
 
-C:\Users\<add your WS username here>\AppData\Roaming\Python\Python313\Scripts
+%USERPROFILE%\AppData\Roaming\Python\Python313\Scripts
 
 Click OK to close all dialogs
 
