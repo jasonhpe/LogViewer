@@ -46,13 +46,15 @@ def get_fastlog_parser():
 
         # Convert path to WSL-compatible format
         drive, rest = os.path.splitdrive(str(local_path))
+
+        if not drive:
+                raise ValueError(f"Invalid directory path passed to read_lines: {path}")
         rest_fixed = rest.replace("\\", "/")
         wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
         return ["wsl", wsl_path]
 
     raise RuntimeError(f"Unsupported platform: {system}")
-
-
+    
 def extract_bundle(path):
     tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
     os.makedirs(tmp_dir, exist_ok=True)
@@ -68,31 +70,9 @@ def read_lines(path):
     if os.path.isdir(path):
         if platform.system() == "Windows":
             drive, rest = os.path.splitdrive(path)
-            rest_fixed = rest.replace("\\", "/")
-            wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
-            journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
-        else:
-            journal_cmd = ["journalctl", "-D", path, "--no-pager"]
-        try:
-            result = subprocess.run(journal_cmd, stdout=subprocess.PIPE, text=True)
-            return result.stdout.splitlines()
-        except Exception as e:
-            print(f"⚠️ Failed to read journal logs from {path}: {e}")
-            return []
-    else:
-        try:
-            with open(path, "r", errors='ignore') as f:
-                return f.readlines()
-        except Exception as e:
-            print(f"⚠️ Failed to read file {path}: {e}")
-            return []
 
-
-
-def read_lines(path):
-    if os.path.isdir(path):
-        if platform.system() == "Windows":
-            drive, rest = os.path.splitdrive(path)
+            if not drive:
+                raise ValueError(f"Invalid directory path passed to read_lines: {path}")
             rest_fixed = rest.replace("\\", "/")
             wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
             journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
