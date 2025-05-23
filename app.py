@@ -94,20 +94,25 @@ def render_bundle_view(df, bundle_key):
     if not page_df.empty:
         page_df["timestamp"] = page_df["timestamp"].apply(format_timestamp)
 
-        def color_severity(val):
-            color = ''
-            if val == 'LOG_ERR':
-                color = 'background-color: #f8d7da'
-            elif val == 'LOG_WARN':
-                color = 'background-color: #fff3cd'
-            elif val == 'LOG_INFO':
-                color = 'background-color: #d1ecf1'
-            return color
+        def color_tag(sev):
+            if sev == 'LOG_ERR':
+                return "🔴 ERROR"
+            elif sev == 'LOG_WARN':
+                return "🟡 WARN"
+            elif sev == 'LOG_INFO':
+                return "🔵 INFO"
+            else:
+                return "⚪ OTHER"
 
-        styled_df = page_df[["timestamp", "process", "message", "severity"]].reset_index(drop=True).style.applymap(
-            color_severity, subset=["severity"]
-        )
-        st.dataframe(styled_df, height=400, use_container_width=True)
+        # Display interactive table with expandable JSON
+        for idx, row in page_df.iterrows():
+            with st.container():
+                cols = st.columns([2, 2, 8])
+                cols[0].markdown(f"**{row['timestamp']}**")
+                cols[1].markdown(color_tag(row.get('severity', '')))
+                with cols[2].expander(f"{row['message'][:80]}..."):
+                    st.json(row.to_dict())
+
     else:
         st.warning("No logs to display.")
 
