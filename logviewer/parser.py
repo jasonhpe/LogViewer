@@ -23,11 +23,11 @@ def find_readme():
 
 def get_fastlog_parser():
     root = Path(__file__).resolve().parent
-    system = platform.system()
     exec_name = "fastlogParser"
-    local_path = root / exec_name
+    system = platform.system()
 
     if system == "Linux":
+        local_path = root / exec_name
         if not os.access(local_path, os.X_OK):
             temp_exec = Path(tempfile.gettempdir()) / exec_name
             if not temp_exec.exists():
@@ -37,7 +37,16 @@ def get_fastlog_parser():
         return str(local_path)
 
     elif system == "Windows":
-        wsl_path = f"/mnt/c{str(local_path).replace(':', '').replace('\\', '/').replace('\\\\', '/')}"
+        local_path = Path(tempfile.gettempdir()) / exec_name
+        if not local_path.exists():
+            packaged_path = Path(__file__).resolve().parent / exec_name
+            if not packaged_path.exists():
+                raise FileNotFoundError(f"fastlogParser not found at {packaged_path}")
+            shutil.copy2(packaged_path, local_path)
+
+        # Convert to WSL path
+        drive, rest = os.path.splitdrive(str(local_path))
+        wsl_path = f"/mnt/{drive[0].lower()}{rest.replace('\\', '/')}"
         return ["wsl", wsl_path]
 
     else:
