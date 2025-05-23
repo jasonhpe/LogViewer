@@ -1,3 +1,4 @@
+import platform
 import os
 import re
 import tarfile
@@ -21,29 +22,26 @@ def find_readme():
     return None
 
 def get_fastlog_parser():
-    """Returns the appropriate path to the fastlogParser executable for current OS."""
     root = Path(__file__).resolve().parent
     system = platform.system()
+    exec_name = "fastlogParser"
+    local_path = root / exec_name
 
-    # Determine expected executable name
-    exec_name = "fastlogParser.exe" if system == "Windows" else "fastlogParser"
-    exec_path = root / exec_name
+    if system == "Linux":
+        if not os.access(local_path, os.X_OK):
+            temp_exec = Path(tempfile.gettempdir()) / exec_name
+            if not temp_exec.exists():
+                shutil.copy2(local_path, temp_exec)
+                temp_exec.chmod(0o755)
+            return str(temp_exec)
+        return str(local_path)
 
-    # Validate existence
-    if not exec_path.exists():
-        raise FileNotFoundError(f"❌ fastlogParser not found at {exec_path}")
+    elif system == "Windows":
+        wsl_path = f"/mnt/c{str(local_path).replace(':', '').replace('\\', '/').replace('\\\\', '/')}"
+        return ["wsl", wsl_path]
 
-    # On Linux: make sure it's executable
-    if system != "Windows" and not os.access(exec_path, os.X_OK):
-        temp_exec = Path(tempfile.gettempdir()) / exec_name
-        if not temp_exec.exists():
-            shutil.copy2(exec_path, temp_exec)
-            temp_exec.chmod(0o755)
-            print(f"✅ Copied fastlogParser to temp path and made it executable: {temp_exec}")
-        return str(temp_exec)
-
-    # On Windows: just return it (no chmod)
-    return str(exec_path)
+    else:
+        raise RuntimeError(f"Unsupported platform: {system}")
 
 def extract_bundle(path):
     tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
@@ -99,37 +97,36 @@ def collect_event_logs(bundle_dir):
     return logs
 
 def collect_fastlogs(bundle_dir, output_dir):
-    fastlog_path = get_fastlog_parser()
+    fastlog_cmd = get_fastlog_parser()
     fastlog_files = []
     fastlog_output_dir = os.path.join(output_dir, "fastlogs")
     os.makedirs(fastlog_output_dir, exist_ok=True)
-
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
+                cmd = fastlog_cmd + ["-v", full_path] if isinstance(fastlog_cmd, list) else [fastlog_cmd, "-v", full_path]
                 try:
-                    result = subprocess.run([fastlog_path, "-v", full_path], stdout=subprocess.PIPE, text=True)
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
                     with open(out_file, "w") as f:
                         f.write(result.stdout)
                     fastlog_files.append(fname + ".txt")
                 except Exception as e:
                     print(f"⚠️ Failed to parse {fname}: {e}")
-
     return fastlog_files
 
 def collect_fastlog_entries(bundle_dir):
-    fastlog_path = get_fastlog_parser()
+    fastlog_cmd = get_fastlog_parser()
     entries = []
-
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
                 process_name = os.path.basename(fname).replace(".supportlog", "")
+                cmd = fastlog_cmd + ["-v", full_path] if isinstance(fastlog_cmd, list) else [fastlog_cmd, "-v", full_path]
                 try:
-                    result = subprocess.run([fastlog_path, "-v", full_path], stdout=subprocess.PIPE, text=True)
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     lines = result.stdout.splitlines()
                     buffer = []
                     timestamp = None
