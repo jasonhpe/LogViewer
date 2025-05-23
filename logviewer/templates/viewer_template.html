@@ -175,14 +175,14 @@ function initTimestampSlider(minDate, maxDate) {
     step: 60 * 1000, // 1 minute steps
     tooltips: false,
     format: {
-      to: value => new Date(value).toISOString().slice(0, 16).replace('T', ' '),
-      from: value => +new Date(value)
+      to: value => value,         // Keep as timestamp (number)
+      from: value => Number(value)
     }
   });
 
-  slider.noUiSlider.on('update', function(values, handle) {
-    selectedFrom = new Date(values[0]);
-    selectedTo = new Date(values[1]);
+  slider.noUiSlider.on('update', function(values) {
+    selectedFrom = new Date(+values[0]);
+    selectedTo = new Date(+values[1]);
     document.getElementById("slider-range-label").textContent =
       `${selectedFrom.toISOString().slice(0,16).replace('T', ' ')} → ${selectedTo.toISOString().slice(0,16).replace('T', ' ')}`;
   });
