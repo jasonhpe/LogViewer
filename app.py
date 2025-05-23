@@ -73,6 +73,7 @@ def render_bundle_view(df, bundle_key):
     if "severity" in filtered_df.columns:
         error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR']
         if not error_logs.empty:
+            error_logs = error_logs.copy()
             error_logs['hour'] = error_logs['timestamp_dt'].dt.strftime("%Y-%m-%d %H")
             chart_data = error_logs.groupby('hour').size().rename("count").reset_index()
             st.line_chart(chart_data.set_index('hour'))
@@ -111,13 +112,11 @@ def render_bundle_view(df, bundle_key):
     else:
         st.warning("No logs to display.")
 
-    txt_buffer = io.StringIO()
-    txt_buffer.write(filtered_df.to_string(index=False))
-    txt_buffer.seek(0)
+    export_data = filtered_df.to_string(index=False)
 
     st.download_button(
         "📤 Export Filtered Logs",
-        data=txt_buffer,
+        data=export_data,
         file_name="filtered_logs.txt",
         mime="text/plain",
         key=f"download_btn_{bundle_key}"
