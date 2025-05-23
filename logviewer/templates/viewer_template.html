@@ -254,6 +254,7 @@ fetch('parsed_logs.json' + cacheBuster)
     const timestamps = logs.map(l => new Date(l.timestamp)).filter(d => !isNaN(d));
     const min = new Date(Math.min(...timestamps));
     const max = new Date(Math.max(...timestamps));
+    console.log("Slider range:", min, max);
     initTimestampSlider(min, max);
     
   });
