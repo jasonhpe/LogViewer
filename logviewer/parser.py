@@ -129,7 +129,8 @@ def collect_event_logs(bundle_dir):
     return logs
 
 def translate_path_for_wsl(path):
-    drive, rest = os.path.splitdrive(path)
+    abs_path = os.path.abspath(path)
+    drive, rest = os.path.splitdrive(abs_path)
     if not drive or len(drive) < 2:
         raise ValueError(f"Invalid path for WSL translation: '{path}'")
     rest_fixed = rest.replace("\\", "/")
