@@ -19,12 +19,14 @@ class CustomInstallCommand(install):
                     # Windows: check WSL
                     if shutil.which("wsl") is None:
                         print("⚠️ WSL not found. Fastlog parsing will not work unless WSL is installed.")
-                        print(\"\"\"\n🔧 To install WSL manually (Windows 10+):
-                        1. Open PowerShell as Administrator
-                        2. Run: wsl --install
-                        3. Restart your computer
-                        More: https://aka.ms/wslinstall
-                        📦 Once WSL is installed, you can use fastlogParser from within Windows.\n\"\"\")
+                        print("""
+🔧 To install WSL manually (Windows 10+):
+1. Open PowerShell as Administrator
+2. Run: wsl --install
+3. Restart your computer
+More: https://aka.ms/wslinstall
+📦 Once WSL is installed, you can use fastlogParser from within Windows.
+""")
                     else:
                         print("✅ WSL is available. Fastlog parsing should work via WSL.")
                 else:
