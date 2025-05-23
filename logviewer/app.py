@@ -1,3 +1,9 @@
+try:
+    import streamlit
+except ImportError:
+    print("\u274c streamlit is not installed. Please install it manually for Viewer support. Use 'sudo apt install streamlit pandas'")
+    exit(1)
+
 import streamlit as st
 import pandas as pd
 import json
