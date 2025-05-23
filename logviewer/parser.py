@@ -62,27 +62,25 @@ def read_lines(path):
         with open(path, "r", errors='ignore') as f:
             return f.readlines()
 
-def parse_line(line):
-    patterns = [
-        re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+Event\|(?P<event_id>\d+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<message>.+)'),
-        re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<facility>\S+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<submodule>[^|]*)\|(?P<source>[^|]*)\|(?P<message>.+)'),
-        re.compile(r'(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+[\d:]{8})\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<message>.+)')
-    ]
-    for pattern in patterns:
-        match = pattern.match(line.strip())
-        if match:
-            group = match.groupdict()
-            try:
-                if "T" in group["timestamp"]:
-                    dt = datetime.fromisoformat(group["timestamp"])
-                else:
-                    dt = datetime.strptime(group["timestamp"], "%b %d %H:%M:%S").replace(year=datetime.now().year)
-                group["timestamp"] = dt.astimezone(timezone.utc).isoformat()
-            except Exception as e:
-                print(f"⚠️ Failed to parse timestamp: {group.get('timestamp')} - {e}")
-                return None
-            return group
-    return None
+def read_lines(path):
+    if os.path.isdir(path):
+        journal_cmd = ["journalctl", "-D", path, "--no-pager"]
+        if platform.system() == "Windows":
+            wsl_path = f"/mnt/c{path.replace(':', '').replace('\\\\', '/').replace('\\', '/')}"
+            journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
+        try:
+            result = subprocess.run(journal_cmd, stdout=subprocess.PIPE, text=True)
+            return result.stdout.splitlines()
+        except Exception as e:
+            print(f"⚠️ Failed to read journal logs from {path}: {e}")
+            return []
+    else:
+        try:
+            with open(path, "r", errors='ignore') as f:
+                return f.readlines()
+        except Exception as e:
+            print(f"⚠️ Failed to read file {path}: {e}")
+            return []
 
 def collect_event_logs(bundle_dir):
     logs = []
