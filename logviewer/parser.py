@@ -46,9 +46,9 @@ def get_fastlog_parser():
 
         # Convert path to WSL-compatible format
         drive, rest = os.path.splitdrive(str(local_path))
-
-        if not drive:
-                raise ValueError(f"Invalid directory path passed to read_lines: {path}")
+        if not drive or len(drive) < 2:
+            raise ValueError(f"Invalid path for WSL conversion: {local_path}")
+            
         rest_fixed = rest.replace("\\", "/")
         wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
         return ["wsl", wsl_path]
@@ -70,9 +70,8 @@ def read_lines(path):
     if os.path.isdir(path):
         if platform.system() == "Windows":
             drive, rest = os.path.splitdrive(path)
-
-            if not drive:
-                raise ValueError(f"Invalid directory path passed to read_lines: {path}")
+            if not drive or len(drive) < 2:
+                raise ValueError(f"Invalid path for WSL conversion: {local_path}")
             rest_fixed = rest.replace("\\", "/")
             wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
             journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
