@@ -1,3 +1,4 @@
+import io
 import streamlit as st 
 import pandas as pd
 import json
@@ -110,7 +111,17 @@ def render_bundle_view(df, bundle_key):
     else:
         st.warning("No logs to display.")
 
-    st.download_button("📤 Export Filtered Logs", filtered_df.to_string(index=False), file_name="filtered_logs.txt", key=f"download_btn_{bundle_key}")
+    txt_buffer = io.StringIO()
+    txt_buffer.write(filtered_df.to_string(index=False))
+    txt_buffer.seek(0)
+
+    st.download_button(
+        "📤 Export Filtered Logs",
+        data=txt_buffer,
+        file_name="filtered_logs.txt",
+        mime="text/plain",
+        key=f"download_btn_{bundle_key}"
+    )
 
 
 def render_fastlogs(path, bundle_key="default"):
