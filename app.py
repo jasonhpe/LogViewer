@@ -1,3 +1,4 @@
+
 import io
 import streamlit as st 
 import pandas as pd
@@ -49,6 +50,7 @@ def apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_da
     return filtered_df
 
 def render_bundle_view(df, bundle_key):
+    st.write(f"🔍 DEBUG: Rendering Logs for bundle: {bundle_key}")
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         proc_filter = st.selectbox("Filter by Process", ["All"] + sorted(df['process'].dropna().unique().tolist()), key=f"proc_filter_{bundle_key}")
@@ -71,9 +73,8 @@ def render_bundle_view(df, bundle_key):
 
     st.subheader("📈 Errors per Hour")
     if "severity" in filtered_df.columns:
-        error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR']
+        error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR'].copy()
         if not error_logs.empty:
-            error_logs = error_logs.copy()
             error_logs['hour'] = error_logs['timestamp_dt'].dt.strftime("%Y-%m-%d %H")
             chart_data = error_logs.groupby('hour').size().rename("count").reset_index()
             st.line_chart(chart_data.set_index('hour'))
@@ -112,19 +113,18 @@ def render_bundle_view(df, bundle_key):
     else:
         st.warning("No logs to display.")
 
-    export_buffer = io.StringIO()
-    export_buffer.write(filtered_df.to_string(index=False))
-    export_buffer.seek(0)
+    export_data = filtered_df.to_string(index=False)
 
     st.download_button(
         "📤 Export Filtered Logs",
-        data=export_buffer,
+        data=export_data,
         file_name="filtered_logs.txt",
         mime="text/plain",
         key=f"download_btn_{bundle_key}"
     )
 
 def render_fastlogs(path, bundle_key="default"):
+    st.write(f"🧪 DEBUG: Rendering fastlogs for {bundle_key}")
     fastlog_dir = os.path.join(path, "fastlogs")
     if not os.path.exists(fastlog_dir):
         st.info("No fastlog directory found.")
@@ -139,6 +139,7 @@ def render_fastlogs(path, bundle_key="default"):
     st.text_area("Fastlog Output", content, height=500, key=f"fastlog_output_{bundle_key}")
 
 def render_diag(path, bundle_key="default"):
+    st.write(f"🧪 DEBUG: Rendering diag for {bundle_key}")
     diag_dir = os.path.join(path, "feature")
     if not os.path.exists(diag_dir):
         st.info("No diag directory found.")
@@ -153,6 +154,7 @@ def render_diag(path, bundle_key="default"):
     st.text_area("Diag Dump Output", content, height=500, key=f"diag_output_{bundle_key}")
 
 def render_showtech(path, bundle_key="default"):
+    st.write(f"🧪 DEBUG: Rendering showtech for {bundle_key}")
     showtech_dir = os.path.join(path, "showtech")
     if not os.path.exists(showtech_dir):
         st.info("No showtech directory found.")
@@ -166,7 +168,6 @@ def render_showtech(path, bundle_key="default"):
         content = f.read()
     st.text_area("ShowTech Output", content, height=500, key=f"showtech_output_{bundle_key}")
 
-# --- Main Rendering Logic ---
 if MODE == "single":
     path = config.get("bundle_path")
     if not path or not os.path.exists(path):
@@ -199,18 +200,20 @@ elif MODE == "carousel":
             df = load_parsed_logs(bundle["path"])
             if df.empty:
                 st.warning("No logs found in parsed bundle.")
-            else:
-                tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
-                with tab1:
-                    render_bundle_view(df, bundle_key=bundle["name"])
-                with tab2:
-                    render_fastlogs(bundle["path"], bundle_key=bundle["name"])
-                with tab3:
-                    render_diag(bundle["path"], bundle_key=bundle["name"])
-                with tab4:
-                    render_showtech(bundle["path"], bundle_key=bundle["name"])
+                continue
+
+            subtabs = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+            with subtabs[0]:
+                render_bundle_view(df, bundle_key=bundle["name"])
+            with subtabs[1]:
+                render_fastlogs(bundle["path"], bundle_key=bundle["name"])
+            with subtabs[2]:
+                render_diag(bundle["path"], bundle_key=bundle["name"])
+            with subtabs[3]:
+                render_showtech(bundle["path"], bundle_key=bundle["name"])
 else:
     st.error("Invalid mode in config.json")
+
 
 
 
