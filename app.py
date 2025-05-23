@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st 
 import pandas as pd
 import json
 import os
@@ -8,7 +8,6 @@ from pathlib import Path
 st.set_page_config(layout="wide", page_title="LogViewer")
 st.title("📋 Log Viewer Dashboard")
 
-# Load config to determine mode
 CONFIG_FILE = "config.json"
 if not os.path.exists(CONFIG_FILE):
     st.error("Missing config.json! Cannot continue.")
@@ -70,13 +69,16 @@ def render_bundle_view(df, bundle_key):
     filtered_df = apply_filters(df, proc_filter, keyword, include_fastlogs, start_date, end_date)
 
     st.subheader("📈 Errors per Hour")
-    error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR']
-    if not error_logs.empty:
-        error_logs['hour'] = error_logs['timestamp_dt'].dt.strftime("%Y-%m-%d %H")
-        chart_data = error_logs.groupby('hour').size().rename("count").reset_index()
-        st.line_chart(chart_data.set_index('hour'))
+    if "severity" in filtered_df.columns:
+        error_logs = filtered_df[filtered_df['severity'] == 'LOG_ERR']
+        if not error_logs.empty:
+            error_logs['hour'] = error_logs['timestamp_dt'].dt.strftime("%Y-%m-%d %H")
+            chart_data = error_logs.groupby('hour').size().rename("count").reset_index()
+            st.line_chart(chart_data.set_index('hour'))
+        else:
+            st.info("No LOG_ERR entries in this view.")
     else:
-        st.info("No LOG_ERR entries in this view.")
+        st.info("No severity field in logs.")
 
     logs_per_page = 100
     total_pages = (len(filtered_df) + logs_per_page - 1) // logs_per_page
@@ -111,6 +113,48 @@ def render_bundle_view(df, bundle_key):
     st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv",
                        key=f"download_btn_{bundle_key}")
 
+def render_fastlogs(path):
+    fastlog_dir = os.path.join(path, "fastlogs")
+    if not os.path.exists(fastlog_dir):
+        st.info("No fastlog directory found.")
+        return
+    files = [f for f in os.listdir(fastlog_dir) if f.endswith(".txt")]
+    if not files:
+        st.info("No fastlog files found.")
+        return
+    selected = st.selectbox("Select fastlog file", files)
+    with open(os.path.join(fastlog_dir, selected)) as f:
+        content = f.read()
+    st.text_area("Fastlog Output", content, height=500)
+
+def render_diag(path):
+    diag_dir = os.path.join(path, "feature")
+    if not os.path.exists(diag_dir):
+        st.info("No diag directory found.")
+        return
+    files = [f for f in os.listdir(diag_dir) if f.endswith(".txt")]
+    if not files:
+        st.info("No diag files found.")
+        return
+    selected = st.selectbox("Select diagdump file", files)
+    with open(os.path.join(diag_dir, selected)) as f:
+        content = f.read()
+    st.text_area("Diag Dump Output", content, height=500)
+
+def render_showtech(path):
+    showtech_dir = os.path.join(path, "showtech")
+    if not os.path.exists(showtech_dir):
+        st.info("No showtech directory found.")
+        return
+    files = [f for f in os.listdir(showtech_dir) if f.endswith(".txt")]
+    if not files:
+        st.info("No showtech files found.")
+        return
+    selected = st.selectbox("Select showtech file", files)
+    with open(os.path.join(showtech_dir, selected)) as f:
+        content = f.read()
+    st.text_area("ShowTech Output", content, height=500)
+
 # --- Main Rendering Logic ---
 if MODE == "single":
     path = config.get("bundle_path")
@@ -121,7 +165,15 @@ if MODE == "single":
     if df.empty:
         st.warning("No logs found in parsed bundle.")
     else:
-        render_bundle_view(df, bundle_key="single")
+        tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+        with tab1:
+            render_bundle_view(df, bundle_key="single")
+        with tab2:
+            render_fastlogs(path)
+        with tab3:
+            render_diag(path)
+        with tab4:
+            render_showtech(path)
 
 elif MODE == "carousel":
     bundles = config.get("bundle_list", [])
@@ -132,11 +184,21 @@ elif MODE == "carousel":
     tabs = st.tabs([b["name"] for b in bundles])
     for i, bundle in enumerate(bundles):
         with tabs[i]:
+            st.markdown(f"### 📦 Bundle: `{bundle['name']}`")
             df = load_parsed_logs(bundle["path"])
             if df.empty:
                 st.warning("No logs found in parsed bundle.")
             else:
-                render_bundle_view(df, bundle_key=bundle["name"])
+                tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+                with tab1:
+                    render_bundle_view(df, bundle_key=bundle["name"])
+                with tab2:
+                    render_fastlogs(bundle["path"])
+                with tab3:
+                    render_diag(bundle["path"])
+                with tab4:
+                    render_showtech(bundle["path"])
 else:
     st.error("Invalid mode in config.json")
+
 
