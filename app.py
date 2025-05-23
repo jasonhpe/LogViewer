@@ -1,4 +1,3 @@
-
 import io
 import streamlit as st 
 import pandas as pd
@@ -129,9 +128,9 @@ def render_fastlogs(path, bundle_key="default"):
     if not os.path.exists(fastlog_dir):
         st.info("No fastlog directory found.")
         return
-    files = [f for f in os.listdir(fastlog_dir) if f.endswith(".txt")]
+    files = [f for f in os.listdir(fastlog_dir) if f.endswith(".supportlog.txt")]
     if not files:
-        st.info("No fastlog files found.")
+        st.info("No fastlog .supportlog.txt files found.")
         return
     selected = st.selectbox("Select fastlog file", files, key=f"fastlog_file_{bundle_key}")
     with open(os.path.join(fastlog_dir, selected)) as f:
@@ -168,6 +167,7 @@ def render_showtech(path, bundle_key="default"):
         content = f.read()
     st.text_area("ShowTech Output", content, height=500, key=f"showtech_output_{bundle_key}")
 
+# Main logic
 if MODE == "single":
     path = config.get("bundle_path")
     if not path or not os.path.exists(path):
@@ -213,7 +213,3 @@ elif MODE == "carousel":
                 render_showtech(bundle["path"], bundle_key=bundle["name"])
 else:
     st.error("Invalid mode in config.json")
-
-
-
-
