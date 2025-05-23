@@ -46,7 +46,7 @@ def get_fastlog_parser():
 
         # Convert to WSL path
         drive, rest = os.path.splitdrive(str(local_path))
-        rest_fixed = rest.replace('\\', '/').replace('\', '/')
+        rest_fixed = rest.replace("\\", "/")
         wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
         return ["wsl", wsl_path]
 
