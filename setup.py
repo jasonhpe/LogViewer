@@ -1,24 +1,34 @@
-# setup.py
-
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 import os
 import stat
+import platform
+import shutil
 
 class CustomInstallCommand(install):
     def run(self):
         install.run(self)
-        # Automatically make fastlogParser executable
         try:
             import logviewer
-            path = os.path.join(os.path.dirname(logviewer.__file__), "fastlogParser")
-            if os.path.exists(path):
-                os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-                print(f"✅ Set executable permissions on {path}")
+            root = os.path.dirname(logviewer.__file__)
+            fastlog_path = os.path.join(root, "fastlogParser")
+            is_windows = platform.system() == "Windows"
+
+            if os.path.exists(fastlog_path):
+                if is_windows:
+                    # Windows: check WSL
+                    if shutil.which("wsl") is None:
+                        print("⚠️ WSL not found. Fastlog parsing will not work unless WSL is installed.")
+                    else:
+                        print("✅ WSL is available. Fastlog parsing should work via WSL.")
+                else:
+                    # Linux: set executable bits
+                    os.chmod(fastlog_path, os.stat(fastlog_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                    print(f"✅ Set executable permissions on {fastlog_path}")
             else:
-                print(f"⚠️ fastlogParser not found at {path}")
+                print(f"⚠️ fastlogParser not found at {fastlog_path}")
         except Exception as e:
-            print(f"❌ Failed to set executable permission: {e}")
+            print(f"❌ Failed during post-install setup: {e}")
 
 setup(
     name='LogViewer',
