@@ -146,14 +146,14 @@ def collect_fastlogs(bundle_dir, output_dir):
             if fname.endswith(".supportlog"):
                 full_path = os.path.join(root, fname)
                 if isinstance(fastlog_cmd, list):
-                    print(f"🪵 Translating to WSL: {full_path}")
+                    ## print(f"🪵 Translating to WSL: {full_path}")
                     input_path = translate_path_for_wsl(full_path)
-                    print(f"✅ Translated: {input_path}")
+                    ## print(f"✅ Translated: {input_path}")
                     cmd = fastlog_cmd + ["-v", input_path]
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
                 try:
-                    print(f"📦 Running command: {' '.join(cmd)}")
+                    ## print(f"📦 Running command: {' '.join(cmd)}")
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
                     with open(out_file, "w") as f:
@@ -173,14 +173,14 @@ def collect_fastlog_entries(bundle_dir):
                 full_path = os.path.join(root, fname)
                 process_name = os.path.basename(fname).replace(".supportlog", "")
                 if isinstance(fastlog_cmd, list):
-                    print(f"🪵 Translating to WSL: {full_path}")
+                    ## print(f"🪵 Translating to WSL: {full_path}")
                     input_path = translate_path_for_wsl(full_path)
-                    print(f"✅ Translated: {input_path}")
+                    ## print(f"✅ Translated: {input_path}")
                     cmd = fastlog_cmd + ["-v", input_path]
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
                 try:
-                    print(f"📦 Running command: {' '.join(cmd)}")
+                    ## print(f"📦 Running command: {' '.join(cmd)}")
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     lines = result.stdout.splitlines()
                     buffer = []
