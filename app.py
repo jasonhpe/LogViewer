@@ -110,10 +110,10 @@ def render_bundle_view(df, bundle_key):
     else:
         st.warning("No logs to display.")
 
-    st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv",
-                       key=f"download_btn_{bundle_key}")
+    st.download_button("📤 Export Filtered Logs", filtered_df.to_string(index=False), file_name="filtered_logs.txt", key=f"download_btn_{bundle_key}")
 
-def render_fastlogs(path):
+
+def render_fastlogs(path, bundle_key="default"):
     fastlog_dir = os.path.join(path, "fastlogs")
     if not os.path.exists(fastlog_dir):
         st.info("No fastlog directory found.")
@@ -122,10 +122,10 @@ def render_fastlogs(path):
     if not files:
         st.info("No fastlog files found.")
         return
-    selected = st.selectbox("Select fastlog file", files)
+    selected = st.selectbox("Select fastlog file", files, key=f"fastlog_file_{bundle_key}")
     with open(os.path.join(fastlog_dir, selected)) as f:
         content = f.read()
-    st.text_area("Fastlog Output", content, height=500)
+    st.text_area("Fastlog Output", content, height=500, key=f"fastlog_output_{bundle_key}")
 
 def render_diag(path):
     diag_dir = os.path.join(path, "feature")
@@ -193,7 +193,7 @@ elif MODE == "carousel":
                 with tab1:
                     render_bundle_view(df, bundle_key=bundle["name"])
                 with tab2:
-                    render_fastlogs(bundle["path"])
+                    render_fastlogs(bundle["path"], bundle_key=bundle["name"]) 
                 with tab3:
                     render_diag(bundle["path"])
                 with tab4:
