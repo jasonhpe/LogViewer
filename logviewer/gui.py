@@ -93,36 +93,36 @@ class LogViewerApp:
             self.scan_status.config(text=f"Files scanned: {count}")
 
     def clear_entries(self):
-    selected = self.tree.selection()
-    to_remove = []
+        selected = self.tree.selection()
+        to_remove = []
 
-    if not selected:
-        confirm = messagebox.askyesno("Clear Pending/Error", "Clear all unprocessed (Pending/Error) entries?")
-        if not confirm:
-            return
-        for item in self.tree.get_children():
-            status = self.tree.item(item, "values")[1]
-            if status in ("Pending", "Error"):
-                to_remove.append(item)
-    else:
-        for item in selected:
-            path, status = self.tree.item(item, "values")
-            if status in ("Pending", "Error"):
-                to_remove.append(item)
-            elif status == "Analyzed":
-                confirm = messagebox.askyesno("Delete Parsed?", f"Delete parsed result and remove '{path}'?")
-                if confirm:
-                    parsed = get_parsed_bundles(self.state).get(path)
-                    if parsed:
-                        shutil.rmtree(parsed["output_path"], ignore_errors=True)
-                    self.state["parsed_bundles"].pop(path, None)
+        if not selected:
+            confirm = messagebox.askyesno("Clear Pending/Error", "Clear all unprocessed (Pending/Error) entries?")
+            if not confirm:
+                return
+            for item in self.tree.get_children():
+                status = self.tree.item(item, "values")[1]
+                if status in ("Pending", "Error"):
                     to_remove.append(item)
+        else:
+            for item in selected:
+                path, status = self.tree.item(item, "values")
+                if status in ("Pending", "Error"):
+                    to_remove.append(item)
+                elif status == "Analyzed":
+                    confirm = messagebox.askyesno("Delete Parsed?", f"Delete parsed result and remove '{path}'?")
+                    if confirm:
+                        parsed = get_parsed_bundles(self.state).get(path)
+                        if parsed:
+                            shutil.rmtree(parsed["output_path"], ignore_errors=True)
+                        self.state["parsed_bundles"].pop(path, None)
+                        to_remove.append(item)
 
-    for item in to_remove:
-        self.tree.delete(item)
+        for item in to_remove:
+            self.tree.delete(item)
 
-    save_state(self.state)
-    self.status.config(text="Updated entries after clear operation.", fg="orange")
+        save_state(self.state)
+        self.status.config(text="Updated entries after clear operation.", fg="orange")
     
 
     def add_bundle(self, filepath):
