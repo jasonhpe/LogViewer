@@ -8,6 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/rangePlugin.js"></script>
   <style>
@@ -92,7 +94,8 @@
     <select id="process-filter" class="form-select d-inline w-auto"><option value="">-- All --</option></select>
     <input type="text" id="keyword" class="form-control d-inline w-auto" placeholder="Search messages">
     
-    <input type="text" id="datetime-range" class="form-control d-inline w-auto" placeholder="Select time range">
+    <div id="timestamp-slider" style="width: 300px; margin-left: 10px;"></div>
+    <span id="slider-range-label" style="margin-left: 10px; font-weight: bold;"></span>
 
 
     
@@ -160,20 +163,30 @@
 let selectedFrom = null;
 let selectedTo = null;
 
-flatpickr("#datetime-range", {
-  mode: "range",
-  enableTime: true,
-  dateFormat: "Y-m-d H:i",
-  time_24hr: true,
-  onClose: function(selectedDates) {
-    if (selectedDates.length === 2) {
-      selectedFrom = selectedDates[0];
-      selectedTo = selectedDates[1];
-    } else {
-      selectedFrom = selectedTo = null;
+function initTimestampSlider(minDate, maxDate) {
+  const slider = document.getElementById('timestamp-slider');
+  noUiSlider.create(slider, {
+    start: [minDate.getTime(), maxDate.getTime()],
+    connect: true,
+    range: {
+      min: minDate.getTime(),
+      max: maxDate.getTime()
+    },
+    step: 60 * 1000, // 1 minute steps
+    tooltips: false,
+    format: {
+      to: value => new Date(value).toISOString().slice(0, 16).replace('T', ' '),
+      from: value => +new Date(value)
     }
-  }
-});
+  });
+
+  slider.noUiSlider.on('update', function(values, handle) {
+    selectedFrom = new Date(+values[0]);
+    selectedTo = new Date(+values[1]);
+    document.getElementById("slider-range-label").textContent =
+      `${selectedFrom.toISOString().slice(0,16).replace('T', ' ')} → ${selectedTo.toISOString().slice(0,16).replace('T', ' ')}`;
+  });
+}
   
 function openHelp() {
   fetch("README.md")
@@ -223,6 +236,12 @@ fetch('parsed_logs.json' + cacheBuster)
     });
     renderLogs(filteredLogs);
     updateErrorChart(filteredLogs); 
+    
+    const timestamps = logs.map(l => new Date(l.timestamp)).filter(d => !isNaN(d));
+    const min = new Date(Math.min(...timestamps));
+    const max = new Date(Math.max(...timestamps));
+    initTimestampSlider(min, max);
+    
   });
 
   
@@ -293,8 +312,7 @@ function applyFilters() {
 function resetFilter() {
   document.getElementById("process-filter").value = "";
   document.getElementById("keyword").value = "";
-  document.getElementById("from").value = "";
-  document.getElementById("to").value = "";
+  
   document.getElementById("include-fastlogs").checked = true;
 
   currentPage = 1;
