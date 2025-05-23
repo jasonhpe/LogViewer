@@ -189,18 +189,26 @@ def render_isp_modal(path, key_prefix="default"):
         
 # --- Main Rendering Logic ---
 if MODE == "single":
-    # Scan a predefined folder or list of bundles
-    bundle_paths = config.get("bundle_list", [])
-    if not bundle_paths:
-        st.error("No bundle_list found in config.json for single mode.")
+    bundle_list = config.get("bundle_list", [])
+    if not bundle_list:
+        st.error("No bundle_list found in config.json")
         st.stop()
 
-    bundle_names = [os.path.basename(b["path"]) for b in bundle_paths]
-    selected_bundle_name = st.sidebar.radio("📦 Select Support Bundle", bundle_names)
+    # Sidebar layout
+    st.sidebar.markdown("### 📦 Select Support Bundle")
+    bundle_names = [b["name"] for b in bundle_list]
+    selected_bundle_name = st.sidebar.selectbox("Bundle:", bundle_names)
 
-    selected_bundle = next((b for b in bundle_paths if os.path.basename(b["path"]) == selected_bundle_name), None)
-    if not selected_bundle or not os.path.exists(selected_bundle["path"]):
-        st.error("Selected bundle path is invalid.")
+    selected_bundle = next((b for b in bundle_list if b["name"] == selected_bundle_name), None)
+    if not selected_bundle:
+        st.error("Selected bundle not found.")
+        st.stop()
+
+    st.sidebar.markdown("### 🔄 Select Boot Context")
+    boot_context = st.sidebar.selectbox("Boot:", ["Current Boot"])
+
+    if boot_context != "Current Boot":
+        st.warning("Only 'Current Boot' is implemented.")
         st.stop()
 
     path = selected_bundle["path"]
@@ -228,14 +236,20 @@ elif MODE == "carousel":
         st.error("No bundle_list found in config.json")
         st.stop()
 
-    # Sidebar selector
+    st.sidebar.markdown("### 📦 Select Support Bundle")
     bundle_names = [b["name"] for b in bundles]
-    selected_bundle_name = st.sidebar.radio("📦 Select Support Bundle", bundle_names)
+    selected_bundle_name = st.sidebar.selectbox("Bundle:", bundle_names)
 
-    # Match selected bundle
     selected_bundle = next((b for b in bundles if b["name"] == selected_bundle_name), None)
     if not selected_bundle:
         st.error("Selected bundle not found.")
+        st.stop()
+
+    st.sidebar.markdown("### 🔄 Select Boot Context")
+    boot_context = st.sidebar.selectbox("Boot:", ["Current Boot"])
+
+    if boot_context != "Current Boot":
+        st.warning("Only 'Current Boot' is implemented.")
         st.stop()
 
     st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
