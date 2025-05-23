@@ -175,22 +175,29 @@ function initTimestampSlider(minDate, maxDate) {
     step: 60 * 1000, // 1 minute steps
     tooltips: false,
     format: {
-      to: value => value,         // Keep as timestamp (number)
-      from: value => Number(value)
+      to: value => Number(value),     // strictly return number
+      from: value => Number(value)    // strictly parse number
     }
   });
 
   slider.noUiSlider.on('update', function (values) {
-    const fromMs = Number(values[0]);
-    const toMs = Number(values[1]);
+    try {
+      // Force both to be numbers
+      const from = Number(values[0]);
+      const to = Number(values[1]);
 
-    if (!isNaN(fromMs) && !isNaN(toMs)) {
-      selectedFrom = new Date(fromMs);
-      selectedTo = new Date(toMs);
+      if (isNaN(from) || isNaN(to)) {
+        console.error("Slider values not valid numbers:", values);
+        return;
+      }
+
+      selectedFrom = new Date(from);
+      selectedTo = new Date(to);
+
       document.getElementById("slider-range-label").textContent =
         `${selectedFrom.toISOString().slice(0, 16).replace('T', ' ')} → ${selectedTo.toISOString().slice(0, 16).replace('T', ' ')}`;
-    } else {
-      console.warn("❌ Invalid timestamp values from slider:", values);
+    } catch (e) {
+      console.error(" Failed to parse slider values:", values, e);
     }
   });
 }
