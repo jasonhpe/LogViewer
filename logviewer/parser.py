@@ -68,7 +68,7 @@ def read_lines(path):
     if os.path.isdir(path):
         if platform.system() == "Windows":
             drive, rest = os.path.splitdrive(path)
-            rest_fixed = rest.replace('\\', '/').replace('\', '/')
+            rest_fixed = rest.replace("\\", "/")
             wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
             journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
         else:
