@@ -8,6 +8,7 @@ from pathlib import Path
 
 st.set_page_config(layout="wide", page_title="LogViewer")
 st.title("📋 Log Viewer Dashboard")
+st.sidebar.markdown("## 🧾 Available Bundles")
 
 CONFIG_FILE = "config.json"
 if not os.path.exists(CONFIG_FILE):
@@ -188,10 +189,23 @@ def render_isp_modal(path, key_prefix="default"):
         
 # --- Main Rendering Logic ---
 if MODE == "single":
-    path = config.get("bundle_path")
-    if not path or not os.path.exists(path):
-        st.error("Invalid or missing bundle_path in config.json")
+    # Scan a predefined folder or list of bundles
+    bundle_paths = config.get("bundle_list", [])
+    if not bundle_paths:
+        st.error("No bundle_list found in config.json for single mode.")
         st.stop()
+
+    bundle_names = [os.path.basename(b["path"]) for b in bundle_paths]
+    selected_bundle_name = st.sidebar.radio("📦 Select Support Bundle", bundle_names)
+
+    selected_bundle = next((b for b in bundle_paths if os.path.basename(b["path"]) == selected_bundle_name), None)
+    if not selected_bundle or not os.path.exists(selected_bundle["path"]):
+        st.error("Selected bundle path is invalid.")
+        st.stop()
+
+    path = selected_bundle["path"]
+    st.markdown(f"### 📦 Bundle: `{selected_bundle_name}`")
+
     df = load_parsed_logs(path)
     if df.empty:
         st.warning("No logs found in parsed bundle.")
@@ -214,23 +228,30 @@ elif MODE == "carousel":
         st.error("No bundle_list found in config.json")
         st.stop()
 
-    tabs = st.tabs([b["name"] for b in bundles])
-    for i, bundle in enumerate(bundles):
-        with tabs[i]:
-            st.markdown(f"### 📦 Bundle: `{bundle['name']}`")
-            df = load_parsed_logs(bundle["path"])
-            if df.empty:
-                st.warning("No logs found in parsed bundle.")
-            else:
-                tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
-                with tab1:
-                    render_bundle_view(df, bundle_key=bundle["name"])
-                    render_isp_modal(bundle["path"], key_prefix=bundle["name"])
-                with tab2:
-                    render_fastlogs(bundle["path"], key_prefix=bundle["name"])
-                with tab3:
-                    render_diag(bundle["path"], key_prefix=bundle["name"])
-                with tab4:
-                    render_showtech(bundle["path"], key_prefix=bundle["name"])
+    # Sidebar selector
+    bundle_names = [b["name"] for b in bundles]
+    selected_bundle_name = st.sidebar.radio("📦 Select Support Bundle", bundle_names)
+
+    # Match selected bundle
+    selected_bundle = next((b for b in bundles if b["name"] == selected_bundle_name), None)
+    if not selected_bundle:
+        st.error("Selected bundle not found.")
+        st.stop()
+
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
+    df = load_parsed_logs(selected_bundle["path"])
+    if df.empty:
+        st.warning("No logs found in parsed bundle.")
+    else:
+        tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+        with tab1:
+            render_bundle_view(df, bundle_key=selected_bundle["name"])
+            render_isp_modal(selected_bundle["path"], key_prefix=selected_bundle["name"])
+        with tab2:
+            render_fastlogs(selected_bundle["path"], key_prefix=selected_bundle["name"])
+        with tab3:
+            render_diag(selected_bundle["path"], key_prefix=selected_bundle["name"])
+        with tab4:
+            render_showtech(selected_bundle["path"], key_prefix=selected_bundle["name"])
 else:
     st.error("Invalid mode in config.json")
