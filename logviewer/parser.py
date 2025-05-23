@@ -21,18 +21,29 @@ def find_readme():
     return None
 
 def get_fastlog_parser():
-    source_path = os.path.join(os.path.dirname(__file__), "fastlogParser")
-    if not os.path.exists(source_path):
-        raise FileNotFoundError(f"❌ fastlogParser not found at {source_path}")
-    if "site-packages" in source_path or not os.access(source_path, os.X_OK):
-        temp_exec = os.path.join(tempfile.gettempdir(), "fastlogParser")
-        if not os.path.exists(temp_exec):
-            shutil.copy2(source_path, temp_exec)
-            os.chmod(temp_exec, 0o755)
+    """Returns the appropriate path to the fastlogParser executable for current OS."""
+    root = Path(__file__).resolve().parent
+    system = platform.system()
+
+    # Determine expected executable name
+    exec_name = "fastlogParser.exe" if system == "Windows" else "fastlogParser"
+    exec_path = root / exec_name
+
+    # Validate existence
+    if not exec_path.exists():
+        raise FileNotFoundError(f"❌ fastlogParser not found at {exec_path}")
+
+    # On Linux: make sure it's executable
+    if system != "Windows" and not os.access(exec_path, os.X_OK):
+        temp_exec = Path(tempfile.gettempdir()) / exec_name
+        if not temp_exec.exists():
+            shutil.copy2(exec_path, temp_exec)
+            temp_exec.chmod(0o755)
             print(f"✅ Copied fastlogParser to temp path and made it executable: {temp_exec}")
-        return temp_exec
-    else:
-        return source_path
+        return str(temp_exec)
+
+    # On Windows: just return it (no chmod)
+    return str(exec_path)
 
 def extract_bundle(path):
     tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
