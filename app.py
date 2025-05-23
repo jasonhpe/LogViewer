@@ -94,24 +94,30 @@ def render_bundle_view(df, bundle_key):
     if not page_df.empty:
         page_df["timestamp"] = page_df["timestamp"].apply(format_timestamp)
 
-        # Select only the relevant display columns
+        # Prepare display columns
         display_df = page_df[["timestamp", "process", "message", "severity"]].reset_index(drop=True)
 
-        # Function to apply background color based on severity
         def highlight_row(row):
-            color = ''
             sev = row['severity']
             if sev == 'LOG_ERR':
-                color = 'background-color: #f8d7da'  # light red
+                return ['background-color: #f8d7da'] * 3  # Red
             elif sev == 'LOG_WARN':
-                color = 'background-color: #fff3cd'  # light yellow
+                return ['background-color: #fff3cd'] * 3  # Yellow
             elif sev == 'LOG_INFO':
-                color = 'background-color: #d1ecf1'  # light blue
+                return ['background-color: #d1ecf1'] * 3  # Blue
             else:
-                color = 'background-color: #eeeeee'  # light gray
-            return [color] * len(row)
-        styled_df = display_df.style.apply(highlight_row, axis=1)
+                return ['background-color: #eeeeee'] * 3  # Gray
+
+        # Apply coloring to timestamp, process, message (exclude severity from display)
+        styled_df = display_df[["timestamp", "process", "message"]].style.apply(highlight_row, axis=1)
         st.dataframe(styled_df, height=500, use_container_width=True)
+
+        # Expanders for full JSON view
+        st.markdown("### 🔍 Click for Full Log Details")
+        for idx, row in page_df.iterrows():
+            with st.expander(f"{row['timestamp']} | {row['process']}"):
+                st.json(row.to_dict())
+
     else:
         st.warning("No logs to display.")
 
