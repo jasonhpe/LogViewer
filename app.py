@@ -111,7 +111,8 @@ def render_bundle_view(df, bundle_key):
     else:
         st.warning("No logs to display.")
 
-    st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv",
+    export_subset = page_df[["timestamp", "process", "message"]]
+    st.download_button("📤 Export Filtered Logs", export_subset.to_csv(index=False), file_name="filtered_logs.csv",
                        key=f"download_btn_{bundle_key}")
 
 def render_fastlogs(path, key_prefix="default"):
