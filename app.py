@@ -90,35 +90,28 @@ def render_bundle_view(df, bundle_key):
     end = start + logs_per_page
     page_df = filtered_df.iloc[start:end].copy()
 
+    st.subheader(f"📝 Logs (Page {current_page}/{total_pages})")
     if not page_df.empty:
         page_df["timestamp"] = page_df["timestamp"].apply(format_timestamp)
 
-        #  use severity for coloring, but exclude it from the visible table
-        color_df = page_df[["timestamp", "process", "message", "severity"]].reset_index(drop=True)
-
-        def highlight_row(row):
-            sev = row.get('severity', '')
+        # Display each row as a colored row with inline expandable message
+        for _, row in page_df.iterrows():
+            sev = row.get("severity", "")
             if sev == 'LOG_ERR':
-                return ['background-color: #f8d7da'] * 3  # red
+                bg = "#f8d7da"
             elif sev == 'LOG_WARN':
-                return ['background-color: #fff3cd'] * 3  # yellow
+                bg = "#fff3cd"
             elif sev == 'LOG_INFO':
-                return ['background-color: #d1ecf1'] * 3  # blue
+                bg = "#d1ecf1"
             else:
-                return ['background-color: #eeeeee'] * 3  # gray
+                bg = "#f2f2f2"
 
-        # Display only 3 columns: timestamp, process, message — but keep severity for color
-        styled_df = color_df[["timestamp", "process", "message"]].style.apply(
-            lambda row: highlight_row(color_df.loc[row.name]), axis=1
-        )
-
-        st.dataframe(styled_df, height=500, use_container_width=True)
-
-        # Expandable JSON for all logs
-        st.markdown("### 🔍 Click for Full Log Details")
-        for idx, row in page_df.iterrows():
-            with st.expander(f"{row['timestamp']} | {row['process']}"):
-                st.json(row.to_dict())
+            with st.container():
+                cols = st.columns([2, 2, 8])
+                cols[0].markdown(f"<div style='background-color:{bg};padding:5px'><b>{row['timestamp']}</b></div>", unsafe_allow_html=True)
+                cols[1].markdown(f"<div style='background-color:{bg};padding:5px'>{row['process']}</div>", unsafe_allow_html=True)
+                with cols[2].expander(label=row["message"][:100], expanded=False):
+                    st.json(row.to_dict())
     else:
         st.warning("No logs to display.")
 
