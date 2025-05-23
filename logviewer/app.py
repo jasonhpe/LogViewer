@@ -80,9 +80,24 @@ with tab1:
     st.subheader(f"📝 Logs (Page {current_page}/{total_pages})")
     if not page_df.empty:
         page_df["timestamp"] = page_df["timestamp"].apply(format_timestamp)
-        st.dataframe(page_df[["timestamp", "process", "message", "severity"]].reset_index(drop=True), height=400)
-    else:
-        st.warning("No logs to display.")
+        def color_severity(val):
+            color = ''
+            if val == 'LOG_ERR':
+                color = 'background-color: #f8d7da'  # light red
+            elif val == 'LOG_WARN':
+                color = 'background-color: #fff3cd'  # light yellow
+            elif val == 'LOG_INFO':
+                color = 'background-color: #d1ecf1'  # light blue
+            return color
+
+    styled_df = page_df[["timestamp", "process", "message", "severity"]].reset_index(drop=True).style.applymap(
+        color_severity, subset=["severity"]
+    )
+    st.dataframe(styled_df, height=400, use_container_width=True)
+
+        
+        else:
+            st.warning("No logs to display.")
 
     st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv")
 
