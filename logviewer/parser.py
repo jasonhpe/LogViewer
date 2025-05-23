@@ -152,6 +152,7 @@ def collect_fastlogs(bundle_dir, output_dir):
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
                 try:
+                    print(f"📦 Running command: {' '.join(cmd)}")
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     out_file = os.path.join(fastlog_output_dir, fname + ".txt")
                     with open(out_file, "w") as f:
@@ -178,6 +179,7 @@ def collect_fastlog_entries(bundle_dir):
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
                 try:
+                    print(f"📦 Running command: {' '.join(cmd)}")
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     lines = result.stdout.splitlines()
                     buffer = []
