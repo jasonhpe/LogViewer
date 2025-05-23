@@ -113,7 +113,7 @@ def render_bundle_view(df, bundle_key):
     st.download_button("📤 Export Filtered Logs", filtered_df.to_csv(index=False), file_name="filtered_logs.csv",
                        key=f"download_btn_{bundle_key}")
 
-def render_fastlogs(path):
+def render_fastlogs(path, key_prefix="default"):
     fastlog_dir = os.path.join(path, "fastlogs")
     if not os.path.exists(fastlog_dir):
         st.info("No fastlog directory found.")
@@ -122,12 +122,12 @@ def render_fastlogs(path):
     if not files:
         st.info("No fastlog files found.")
         return
-    selected = st.selectbox("Select fastlog file", files)
+    selected = st.selectbox("Select fastlog file", files, key=f"fastlog_file_{key_prefix}")
     with open(os.path.join(fastlog_dir, selected)) as f:
         content = f.read()
-    st.text_area("Fastlog Output", content, height=500)
+    st.text_area("Fastlog Output", content, height=500, key=f"fastlog_output_{key_prefix}")
 
-def render_diag(path):
+def render_diag(path, key_prefix="default"):
     diag_dir = os.path.join(path, "feature")
     if not os.path.exists(diag_dir):
         st.info("No diag directory found.")
@@ -136,12 +136,12 @@ def render_diag(path):
     if not files:
         st.info("No diag files found.")
         return
-    selected = st.selectbox("Select diagdump file", files)
+    selected = st.selectbox("Select diagdump file", files, key=f"diag_file_{key_prefix}")
     with open(os.path.join(diag_dir, selected)) as f:
         content = f.read()
-    st.text_area("Diag Dump Output", content, height=500)
+    st.text_area("Diag Dump Output", content, height=500, key=f"diag_output_{key_prefix}")
 
-def render_showtech(path):
+def render_showtech(path, key_prefix="default"):
     showtech_dir = os.path.join(path, "showtech")
     if not os.path.exists(showtech_dir):
         st.info("No showtech directory found.")
@@ -150,10 +150,10 @@ def render_showtech(path):
     if not files:
         st.info("No showtech files found.")
         return
-    selected = st.selectbox("Select showtech file", files)
+    selected = st.selectbox("Select showtech file", files, key=f"showtech_file_{key_prefix}")
     with open(os.path.join(showtech_dir, selected)) as f:
         content = f.read()
-    st.text_area("ShowTech Output", content, height=500)
+    st.text_area("ShowTech Output", content, height=500, key=f"showtech_output_{key_prefix}")
 
 # --- Main Rendering Logic ---
 if MODE == "single":
@@ -169,11 +169,11 @@ if MODE == "single":
         with tab1:
             render_bundle_view(df, bundle_key="single")
         with tab2:
-            render_fastlogs(path)
+            render_fastlogs(path, key_prefix="single")
         with tab3:
-            render_diag(path)
+            render_diag(path, key_prefix="single")
         with tab4:
-            render_showtech(path)
+            render_showtech(path, key_prefix="single")
 
 elif MODE == "carousel":
     bundles = config.get("bundle_list", [])
@@ -193,10 +193,10 @@ elif MODE == "carousel":
                 with tab1:
                     render_bundle_view(df, bundle_key=bundle["name"])
                 with tab2:
-                    render_fastlogs(bundle["path"])
+                    render_fastlogs(bundle["path"], key_prefix=bundle["name"])
                 with tab3:
-                    render_diag(bundle["path"])
+                    render_diag(bundle["path"], key_prefix=bundle["name"])
                 with tab4:
-                    render_showtech(bundle["path"])
+                    render_showtech(bundle["path"], key_prefix=bundle["name"])
 else:
     st.error("Invalid mode in config.json")
