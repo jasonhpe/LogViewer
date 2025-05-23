@@ -21,7 +21,7 @@ setup(
     },
 
     package_data={
-        'logviewer': ['templates/*.html', 'README.md']
+        'logviewer': ['fastlogParser', 'README.md']
     },
 
     
