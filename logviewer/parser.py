@@ -46,7 +46,8 @@ def get_fastlog_parser():
 
         # Convert to WSL path
         drive, rest = os.path.splitdrive(str(local_path))
-        wsl_path = f"/mnt/{drive[0].lower()}{rest.replace('\\', '/')}"
+        rest_fixed = rest.replace('\\', '/').replace('\', '/')
+        wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
         return ["wsl", wsl_path]
 
     else:
@@ -65,11 +66,26 @@ def extract_bundle(path):
 
 def read_lines(path):
     if os.path.isdir(path):
-        result = subprocess.run(["journalctl", "-D", path, "--no-pager"], stdout=subprocess.PIPE, text=True)
-        return result.stdout.splitlines()
+        if platform.system() == "Windows":
+            drive, rest = os.path.splitdrive(path)
+            rest_fixed = rest.replace('\\', '/').replace('\', '/')
+            wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
+            journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
+        else:
+            journal_cmd = ["journalctl", "-D", path, "--no-pager"]
+        try:
+            result = subprocess.run(journal_cmd, stdout=subprocess.PIPE, text=True)
+            return result.stdout.splitlines()
+        except Exception as e:
+            print(f"⚠️ Failed to read journal logs from {path}: {e}")
+            return []
     else:
-        with open(path, "r", errors='ignore') as f:
-            return f.readlines()
+        try:
+            with open(path, "r", errors='ignore') as f:
+                return f.readlines()
+        except Exception as e:
+            print(f"⚠️ Failed to read file {path}: {e}")
+            return []
 
 
 
