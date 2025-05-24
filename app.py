@@ -177,6 +177,13 @@ def render_showtech(path, key_prefix="default"):
         content = f.read()
     st.text_area("ShowTech Output", content, height=500, key=f"showtech_output_{key_prefix}")
 
+def get_vsf_members(bundle_output_dir):
+    members_dir = os.path.join(bundle_output_dir, "members")
+    if not os.path.exists(members_dir):
+        return []
+    return [name for name in os.listdir(members_dir)
+            if os.path.isdir(os.path.join(members_dir, name)) and name.startswith("mem_")]
+
 def render_isp_modal(path, key_prefix="default"):
     isp_file = os.path.join(path, "isp.txt")
     if not os.path.exists(isp_file):
@@ -188,10 +195,10 @@ def render_isp_modal(path, key_prefix="default"):
         st.text_area("Parsed ISP Data", isp_data, height=300, key=f"isp_data_{key_prefix}")
         
 # --- Main Rendering Logic ---
-if MODE == "single":
+elif MODE == "single":
     bundle_list = config.get("bundle_list")
     if not bundle_list:
-        # fallback to legacy support
+        # Fallback to legacy support
         single_path = config.get("bundle_path")
         if not single_path or not os.path.exists(single_path):
             st.error("Missing both bundle_list and valid bundle_path in config.json")
@@ -211,23 +218,46 @@ if MODE == "single":
         st.warning("Only 'Current Boot' is implemented.")
         st.stop()
 
-    path = selected_bundle["path"]
-    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
+    bundle_path = selected_bundle["path"]
+    members = get_vsf_members(bundle_path)
+    st.sidebar.markdown("### 🧩 VSF Members")
+    if members:
+        vsf_member = st.sidebar.selectbox("Member:", ["Main Bundle"] + members)
+        if vsf_member == "Main Bundle":
+            path = bundle_path
+            show_showtech = True
+        else:
+            path = os.path.join(bundle_path, "members", vsf_member)
+            show_showtech = False
+    else:
+        st.sidebar.write("No VSF members detected.")
+        path = bundle_path
+        show_showtech = True
 
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
     df = load_parsed_logs(path)
     if df.empty:
         st.warning("No logs found in parsed bundle.")
     else:
-        tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
-        with tab1:
-            render_bundle_view(df, bundle_key="single")
-            render_isp_modal(path, key_prefix="single")
-        with tab2:
-            render_fastlogs(path, key_prefix="single")
-        with tab3:
-            render_diag(path, key_prefix="single")
-        with tab4:
-            render_showtech(path, key_prefix="single")
+        if show_showtech:
+            tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+            with tab1:
+                render_bundle_view(df, bundle_key="single")
+                render_isp_modal(path, key_prefix="single")
+            with tab2:
+                render_fastlogs(path, key_prefix="single")
+            with tab3:
+                render_diag(path, key_prefix="single")
+            with tab4:
+                render_showtech(path, key_prefix="single")
+        else:
+            tab1, tab2, tab3 = st.tabs(["Logs", "Fastlogs", "Diag Dumps"])
+            with tab1:
+                render_bundle_view(df, bundle_key=vsf_member)
+            with tab2:
+                render_fastlogs(path, key_prefix=vsf_member)
+            with tab3:
+                render_diag(path, key_prefix=vsf_member)
             
 
 elif MODE == "carousel":
@@ -247,25 +277,49 @@ elif MODE == "carousel":
 
     st.sidebar.markdown("### 🔄 Select Boot Context")
     boot_context = st.sidebar.selectbox("Boot:", ["Current Boot"])
-
     if boot_context != "Current Boot":
         st.warning("Only 'Current Boot' is implemented.")
         st.stop()
 
+    bundle_path = selected_bundle["path"]
+    members = get_vsf_members(bundle_path)
+    st.sidebar.markdown("### 🧩 VSF Members")
+    if members:
+        vsf_member = st.sidebar.selectbox("Member:", ["Main Bundle"] + members)
+        if vsf_member == "Main Bundle":
+            path = bundle_path
+            show_showtech = True
+        else:
+            path = os.path.join(bundle_path, "members", vsf_member)
+            show_showtech = False
+    else:
+        st.sidebar.write("No VSF members detected.")
+        path = bundle_path
+        show_showtech = True
+
     st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
-    df = load_parsed_logs(selected_bundle["path"])
+    df = load_parsed_logs(path)
     if df.empty:
         st.warning("No logs found in parsed bundle.")
     else:
-        tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
-        with tab1:
-            render_bundle_view(df, bundle_key=selected_bundle["name"])
-            render_isp_modal(selected_bundle["path"], key_prefix=selected_bundle["name"])
-        with tab2:
-            render_fastlogs(selected_bundle["path"], key_prefix=selected_bundle["name"])
-        with tab3:
-            render_diag(selected_bundle["path"], key_prefix=selected_bundle["name"])
-        with tab4:
-            render_showtech(selected_bundle["path"], key_prefix=selected_bundle["name"])
+        if show_showtech:
+            tab1, tab2, tab3, tab4 = st.tabs(["Logs", "Fastlogs", "Diag Dumps", "ShowTech"])
+            with tab1:
+                render_bundle_view(df, bundle_key=selected_bundle["name"])
+                render_isp_modal(path, key_prefix=selected_bundle["name"])
+            with tab2:
+                render_fastlogs(path, key_prefix=selected_bundle["name"])
+            with tab3:
+                render_diag(path, key_prefix=selected_bundle["name"])
+            with tab4:
+                render_showtech(path, key_prefix=selected_bundle["name"])
+        else:
+            tab1, tab2, tab3 = st.tabs(["Logs", "Fastlogs", "Diag Dumps"])
+            with tab1:
+                render_bundle_view(df, bundle_key=vsf_member)
+            with tab2:
+                render_fastlogs(path, key_prefix=vsf_member)
+            with tab3:
+                render_diag(path, key_prefix=vsf_member)
 else:
     st.error("Invalid mode in config.json")
