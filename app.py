@@ -195,7 +195,7 @@ def render_isp_modal(path, key_prefix="default"):
         st.text_area("Parsed ISP Data", isp_data, height=300, key=f"isp_data_{key_prefix}")
         
 # --- Main Rendering Logic ---
-elif MODE == "single":
+if MODE == "single":
     bundle_list = config.get("bundle_list")
     if not bundle_list:
         # Fallback to legacy support
