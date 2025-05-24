@@ -21,6 +21,16 @@ with open(CONFIG_FILE) as f:
 MODE = config.get("mode")
 
 @st.cache_data
+def get_boot_contexts(base_path):
+    boot_dir = os.path.join(base_path, "previous")
+    if not os.path.exists(boot_dir):
+        return ["Current Boot"]
+    boots = [
+        b for b in os.listdir(boot_dir)
+        if os.path.isdir(os.path.join(boot_dir, b)) and b.startswith("boot")
+    ]
+    return ["Current Boot"] + sorted(boots)
+    
 def load_parsed_logs(path):
     log_path = os.path.join(path, "parsed_logs.json")
     if not os.path.exists(log_path):
@@ -212,11 +222,14 @@ if MODE == "single":
             st.error("Selected bundle not found.")
             st.stop()
 
+    boot_options = get_boot_contexts(bundle_path)
     st.sidebar.markdown("### 🔄 Select Boot Context")
-    boot_context = st.sidebar.selectbox("Boot:", ["Current Boot"])
-    if boot_context != "Current Boot":
-        st.warning("Only 'Current Boot' is implemented.")
-        st.stop()
+    boot_context = st.sidebar.selectbox("Boot:", boot_options)
+
+    if boot_context == "Current Boot":
+        path = bundle_path
+    else:
+        path = os.path.join(bundle_path, "previous", boot_context)
 
     bundle_path = selected_bundle["path"]
     members = get_vsf_members(bundle_path)
@@ -234,7 +247,7 @@ if MODE == "single":
         path = bundle_path
         show_showtech = True
 
-    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}`")
     df = load_parsed_logs(path)
     if df.empty:
         st.warning("No logs found in parsed bundle.")
@@ -266,7 +279,7 @@ elif MODE == "carousel":
         st.error("No bundle_list found in config.json")
         st.stop()
 
-    st.sidebar.markdown("### 📦 Select Support Bundle")
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}`")
     bundle_names = [b["name"] for b in bundles]
     selected_bundle_name = st.sidebar.selectbox("Bundle:", bundle_names)
 
@@ -275,11 +288,14 @@ elif MODE == "carousel":
         st.error("Selected bundle not found.")
         st.stop()
 
+    boot_options = get_boot_contexts(bundle_path)
     st.sidebar.markdown("### 🔄 Select Boot Context")
-    boot_context = st.sidebar.selectbox("Boot:", ["Current Boot"])
-    if boot_context != "Current Boot":
-        st.warning("Only 'Current Boot' is implemented.")
-        st.stop()
+    boot_context = st.sidebar.selectbox("Boot:", boot_options)
+
+    if boot_context == "Current Boot":
+        path = bundle_path
+    else:
+        path = os.path.join(bundle_path, "previous", boot_context)
 
     bundle_path = selected_bundle["path"]
     members = get_vsf_members(bundle_path)
@@ -297,7 +313,7 @@ elif MODE == "carousel":
         path = bundle_path
         show_showtech = True
 
-    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}`")
     df = load_parsed_logs(path)
     if df.empty:
         st.warning("No logs found in parsed bundle.")
