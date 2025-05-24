@@ -21,7 +21,28 @@ def find_readme():
     except Exception as e:
         print(f"❌ Could not locate README.md: {e}")
     return None
+    
+def parse_previous_boot_logs(bundle_dir, output_dir):
+    prev_dir = os.path.join(bundle_dir, "previous_boot_logs")
+    if not os.path.exists(prev_dir):
+        return
 
+    for entry in os.listdir(prev_dir):
+        boot_path = os.path.join(prev_dir, entry)
+        if os.path.isdir(boot_path) and entry.startswith("boot"):
+            print(f"🔁 Parsing previous boot: {entry}")
+            out_path = os.path.join(output_dir, "previous", entry)
+            os.makedirs(out_path, exist_ok=True)
+
+            logs = collect_event_logs(boot_path)
+            logs.extend(collect_fastlog_entries(boot_path))
+            logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
+
+            with open(os.path.join(out_path, "parsed_logs.json"), "w") as f:
+                json.dump(logs, f, indent=2)
+
+            collect_fastlogs(boot_path, out_path)
+            
 def parse_vsf_member(tar_path, member_output_dir):
     print(f"📦 Parsing VSF member bundle: {tar_path}")
     extracted = extract_bundle(tar_path, target_dir=member_output_dir + "_tmp")
@@ -39,7 +60,7 @@ def parse_vsf_member(tar_path, member_output_dir):
         json.dump(logs, f, indent=2)
     with open(os.path.join(member_output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
-
+    
     # Copy diagdump_*.txt to a /feature folder
     diag_dir = os.path.join(member_output_dir, "feature")
     os.makedirs(diag_dir, exist_ok=True)
@@ -48,6 +69,8 @@ def parse_vsf_member(tar_path, member_output_dir):
             if file.startswith("diagdump_") and file.endswith(".txt"):
                 shutil.copy(os.path.join(root, file), os.path.join(diag_dir, file))
 
+    parse_previous_boot_logs(extracted, member_output_dir)
+    
     try:
         shutil.rmtree(extracted)
     except Exception as e:
@@ -350,6 +373,10 @@ def parse_bundle(bundle_path, output_dir):
                     parse_vsf_member(member_tar, member_output)
                 except Exception as e:
                     print(f"⚠️ Failed to parse VSF member {file}: {e}")
+    
+    
+     # Handle previous boot logs in main bundle
+    parse_previous_boot_logs(bundle_dir, output_dir)
     
     readme_path = find_readme()
     if readme_path:
