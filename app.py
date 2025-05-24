@@ -208,7 +208,7 @@ def render_isp_modal(path, key_prefix="default"):
 if MODE == "single":
     bundle_list = config.get("bundle_list")
     if not bundle_list:
-        # Fallback to legacy support
+        # Legacy single bundle path
         single_path = config.get("bundle_path")
         if not single_path or not os.path.exists(single_path):
             st.error("Missing both bundle_list and valid bundle_path in config.json")
@@ -221,34 +221,34 @@ if MODE == "single":
         if not selected_bundle:
             st.error("Selected bundle not found.")
             st.stop()
-            
+
     bundle_path = selected_bundle["path"]
-    boot_options = get_boot_contexts(bundle_path)
-    st.sidebar.markdown("### 🔄 Select Boot Context")
-    boot_context = st.sidebar.selectbox("Boot:", boot_options)
-
-    if boot_context == "Current Boot":
-        path = bundle_path
-    else:
-        path = os.path.join(bundle_path, "previous", boot_context)
-
-    
     members = get_vsf_members(bundle_path)
+
     st.sidebar.markdown("### 🧩 VSF Members")
     if members:
         vsf_member = st.sidebar.selectbox("Member:", ["Main Bundle"] + members)
         if vsf_member == "Main Bundle":
-            path = bundle_path
-            show_showtech = True
+            target_path = bundle_path
         else:
-            path = os.path.join(bundle_path, "members", vsf_member)
-            show_showtech = False
+            target_path = os.path.join(bundle_path, "members", vsf_member)
     else:
         st.sidebar.write("No VSF members detected.")
-        path = bundle_path
-        show_showtech = True
+        vsf_member = "Main Bundle"
+        target_path = bundle_path
 
-    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}`")
+    boot_options = get_boot_contexts(target_path)
+    st.sidebar.markdown(f"### 🔄 Select Boot Context ({vsf_member})")
+    boot_context = st.sidebar.selectbox("Boot:", boot_options, key=f"bootctx_{selected_bundle['name']}_{vsf_member}")
+
+    if boot_context == "Current Boot":
+        path = target_path
+    else:
+        path = os.path.join(target_path, "previous", boot_context)
+
+    show_showtech = vsf_member == "Main Bundle"
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}` - 🧩 Member: `{vsf_member}`")
+
     df = load_parsed_logs(path)
     if df.empty:
         st.warning("No logs found in parsed bundle.")
@@ -272,7 +272,6 @@ if MODE == "single":
                 render_fastlogs(path, key_prefix=vsf_member)
             with tab3:
                 render_diag(path, key_prefix=vsf_member)
-            
 
 elif MODE == "carousel":
     bundles = config.get("bundle_list", [])
@@ -280,42 +279,41 @@ elif MODE == "carousel":
         st.error("No bundle_list found in config.json")
         st.stop()
 
-    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}`")
     bundle_names = [b["name"] for b in bundles]
-    selected_bundle_name = st.sidebar.selectbox("Bundle:", bundle_names)
+    selected_bundle_name = st.sidebar.selectbox("📦 Select Support Bundle", bundle_names)
 
     selected_bundle = next((b for b in bundles if b["name"] == selected_bundle_name), None)
     if not selected_bundle:
         st.error("Selected bundle not found.")
         st.stop()
-        
+
     bundle_path = selected_bundle["path"]
-    boot_options = get_boot_contexts(bundle_path)
-    st.sidebar.markdown("### 🔄 Select Boot Context")
-    boot_context = st.sidebar.selectbox("Boot:", boot_options)
-
-    if boot_context == "Current Boot":
-        path = bundle_path
-    else:
-        path = os.path.join(bundle_path, "previous", boot_context)
-
-    
     members = get_vsf_members(bundle_path)
+
     st.sidebar.markdown("### 🧩 VSF Members")
     if members:
         vsf_member = st.sidebar.selectbox("Member:", ["Main Bundle"] + members)
         if vsf_member == "Main Bundle":
-            path = bundle_path
-            show_showtech = True
+            target_path = bundle_path
         else:
-            path = os.path.join(bundle_path, "members", vsf_member)
-            show_showtech = False
+            target_path = os.path.join(bundle_path, "members", vsf_member)
     else:
         st.sidebar.write("No VSF members detected.")
-        path = bundle_path
-        show_showtech = True
+        vsf_member = "Main Bundle"
+        target_path = bundle_path
 
-    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}`")
+    boot_options = get_boot_contexts(target_path)
+    st.sidebar.markdown(f"### 🔄 Select Boot Context ({vsf_member})")
+    boot_context = st.sidebar.selectbox("Boot:", boot_options, key=f"bootctx_{selected_bundle['name']}_{vsf_member}")
+
+    if boot_context == "Current Boot":
+        path = target_path
+    else:
+        path = os.path.join(target_path, "previous", boot_context)
+
+    show_showtech = vsf_member == "Main Bundle"
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}` - 🧩 Member: `{vsf_member}`")
+
     df = load_parsed_logs(path)
     if df.empty:
         st.warning("No logs found in parsed bundle.")
