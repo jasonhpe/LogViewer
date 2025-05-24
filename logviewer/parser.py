@@ -22,6 +22,37 @@ def find_readme():
         print(f"❌ Could not locate README.md: {e}")
     return None
 
+def parse_vsf_member(tar_path, member_output_dir):
+    print(f"📦 Parsing VSF member bundle: {tar_path}")
+    extracted = extract_bundle(tar_path, target_dir=member_output_dir + "_tmp")
+    if not extracted:
+        print(f"⚠️ Could not extract {tar_path}")
+        return
+
+    logs = collect_event_logs(extracted)
+    logs.extend(collect_fastlog_entries(extracted))
+    logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
+
+    fastlog_files = collect_fastlogs(extracted, member_output_dir)
+    os.makedirs(member_output_dir, exist_ok=True)
+    with open(os.path.join(member_output_dir, "parsed_logs.json"), "w") as f:
+        json.dump(logs, f, indent=2)
+    with open(os.path.join(member_output_dir, "fastlog_index.json"), "w") as f:
+        json.dump(fastlog_files, f, indent=2)
+
+    # Copy diagdump_*.txt to a /feature folder
+    diag_dir = os.path.join(member_output_dir, "feature")
+    os.makedirs(diag_dir, exist_ok=True)
+    for root, _, files in os.walk(extracted):
+        for file in files:
+            if file.startswith("diagdump_") and file.endswith(".txt"):
+                shutil.copy(os.path.join(root, file), os.path.join(diag_dir, file))
+
+    try:
+        shutil.rmtree(extracted)
+    except Exception as e:
+        print(f"⚠️ Failed to clean temp member dir {extracted}: {e}")
+        
 def get_fastlog_parser():
     root = Path(__file__).resolve().parent
     exec_name = "fastlogParser"
@@ -56,8 +87,9 @@ def get_fastlog_parser():
 
     raise RuntimeError(f"Unsupported platform: {system}")
     
-def extract_bundle(path):
-    tmp_dir = os.path.join("tmp_extracted", os.path.basename(path).replace(".tar.gz", ""))
+def extract_bundle(path, target_dir=None):
+    name = os.path.basename(path).replace(".tar.gz", "")
+    tmp_dir = target_dir or os.path.join("tmp_extracted", name)
     os.makedirs(tmp_dir, exist_ok=True)
     try:
         with tarfile.open(path, "r:gz") as tar:
@@ -305,6 +337,20 @@ def parse_bundle(bundle_path, output_dir):
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
+    # Check for VSF member bundles
+    members_dir = os.path.join(output_dir, "members")
+    os.makedirs(members_dir, exist_ok=True)
+    for root, _, files in os.walk(bundle_dir):
+        for file in files:
+            if re.match(r"mem_\d+_support_files\.tar\.gz", file):
+                member_tar = os.path.join(root, file)
+                member_name = file.replace("_support_files.tar.gz", "")
+                member_output = os.path.join(members_dir, member_name)
+                try:
+                    parse_vsf_member(member_tar, member_output)
+                except Exception as e:
+                    print(f"⚠️ Failed to parse VSF member {file}: {e}")
+    
     readme_path = find_readme()
     if readme_path:
         try:
