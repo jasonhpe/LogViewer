@@ -189,30 +189,30 @@ def render_isp_modal(path, key_prefix="default"):
         
 # --- Main Rendering Logic ---
 if MODE == "single":
-    bundle_list = config.get("bundle_list", [])
+    bundle_list = config.get("bundle_list")
     if not bundle_list:
-        st.error("No bundle_list found in config.json")
-        st.stop()
-
-    # Sidebar layout
-    st.sidebar.markdown("### 📦 Select Support Bundle")
-    bundle_names = [b["name"] for b in bundle_list]
-    selected_bundle_name = st.sidebar.selectbox("Bundle:", bundle_names)
-
-    selected_bundle = next((b for b in bundle_list if b["name"] == selected_bundle_name), None)
-    if not selected_bundle:
-        st.error("Selected bundle not found.")
-        st.stop()
+        # fallback to legacy support
+        single_path = config.get("bundle_path")
+        if not single_path or not os.path.exists(single_path):
+            st.error("Missing both bundle_list and valid bundle_path in config.json")
+            st.stop()
+        selected_bundle = {"name": os.path.basename(single_path), "path": single_path}
+    else:
+        bundle_names = [b["name"] for b in bundle_list]
+        selected_bundle_name = st.sidebar.selectbox("📦 Select Support Bundle", bundle_names)
+        selected_bundle = next((b for b in bundle_list if b["name"] == selected_bundle_name), None)
+        if not selected_bundle:
+            st.error("Selected bundle not found.")
+            st.stop()
 
     st.sidebar.markdown("### 🔄 Select Boot Context")
     boot_context = st.sidebar.selectbox("Boot:", ["Current Boot"])
-
     if boot_context != "Current Boot":
         st.warning("Only 'Current Boot' is implemented.")
         st.stop()
 
     path = selected_bundle["path"]
-    st.markdown(f"### 📦 Bundle: `{selected_bundle_name}`")
+    st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}`")
 
     df = load_parsed_logs(path)
     if df.empty:
