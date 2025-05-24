@@ -221,7 +221,8 @@ if MODE == "single":
         if not selected_bundle:
             st.error("Selected bundle not found.")
             st.stop()
-
+            
+    bundle_path = selected_bundle["path"]
     boot_options = get_boot_contexts(bundle_path)
     st.sidebar.markdown("### 🔄 Select Boot Context")
     boot_context = st.sidebar.selectbox("Boot:", boot_options)
@@ -231,7 +232,7 @@ if MODE == "single":
     else:
         path = os.path.join(bundle_path, "previous", boot_context)
 
-    bundle_path = selected_bundle["path"]
+    
     members = get_vsf_members(bundle_path)
     st.sidebar.markdown("### 🧩 VSF Members")
     if members:
@@ -287,7 +288,8 @@ elif MODE == "carousel":
     if not selected_bundle:
         st.error("Selected bundle not found.")
         st.stop()
-
+        
+    bundle_path = selected_bundle["path"]
     boot_options = get_boot_contexts(bundle_path)
     st.sidebar.markdown("### 🔄 Select Boot Context")
     boot_context = st.sidebar.selectbox("Boot:", boot_options)
@@ -297,7 +299,7 @@ elif MODE == "carousel":
     else:
         path = os.path.join(bundle_path, "previous", boot_context)
 
-    bundle_path = selected_bundle["path"]
+    
     members = get_vsf_members(bundle_path)
     st.sidebar.markdown("### 🧩 VSF Members")
     if members:
