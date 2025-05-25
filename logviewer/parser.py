@@ -277,6 +277,39 @@ def collect_event_logs(bundle_dir):
 
     return logs
 
+def get_fastlog_parser():
+    root = Path(__file__).resolve().parent
+    exec_name = "fastlogParser"
+    system = platform.system()
+
+    if system == "Linux":
+        local_path = root / exec_name
+        if not os.access(local_path, os.X_OK):
+            temp_exec = Path(tempfile.gettempdir()) / exec_name
+            if not temp_exec.exists():
+                shutil.copy2(local_path, temp_exec)
+                temp_exec.chmod(0o755)
+            return str(temp_exec)
+        return str(local_path)
+
+    elif system == "Windows":
+        local_path = Path(tempfile.gettempdir()) / exec_name
+        if not local_path.exists():
+            packaged_path = root / exec_name
+            if not packaged_path.exists():
+                raise FileNotFoundError(f"fastlogParser not found at {packaged_path}")
+            shutil.copy2(packaged_path, local_path)
+
+        # Convert path to WSL-compatible format
+        drive, rest = os.path.splitdrive(str(local_path))
+        if not drive or len(drive) < 2:
+            raise ValueError(f"Invalid path for WSL conversion: {local_path}")
+        rest_fixed = rest.replace("\\", "/")
+        wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
+        return ["wsl", wsl_path]
+
+    raise RuntimeError(f"Unsupported platform: {system}")
+
 def translate_path_for_wsl(path):
     abs_path = os.path.abspath(path)
     drive, rest = os.path.splitdrive(abs_path)
