@@ -14,6 +14,7 @@ import traceback
 import gzip
 from concurrent.futures import ProcessPoolExecutor
 
+LOG_FILE_PREFIXES = ["event", "messages", "supportlog", "critical", "diagdump"]
 
 def safe_parse(path):
         try:
@@ -224,7 +225,7 @@ def collect_event_logs(bundle_dir):
             full_path = os.path.join(root, file)
 
             # Handle compressed .gz log files
-            if file.endswith(".gz"):
+            if file.endswith(".gz") and any(file.startswith(prefix) for prefix in LOG_FILE_PREFIXES):
                 try:
                     with gzip.open(full_path, "rt", errors='ignore') as f:
                         for line in f:
@@ -259,46 +260,73 @@ def collect_fastlogs(bundle_dir, output_dir):
     fastlog_files = []
     fastlog_output_dir = os.path.join(output_dir, "fastlogs")
     os.makedirs(fastlog_output_dir, exist_ok=True)
+
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
-            if fname.endswith(".supportlog"):
+            if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
+                temp_decompressed = None
                 full_path = os.path.join(root, fname)
+
+                if fname.endswith(".gz"):
+                    try:
+                        temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
+                        with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                        full_path = temp_decompressed
+                    except Exception as e:
+                        print(f"⚠️ Failed to decompress {fname}: {e}")
+                        continue
+
                 if isinstance(fastlog_cmd, list):
-                    ## print(f"🪵 Translating to WSL: {full_path}")
                     input_path = translate_path_for_wsl(full_path)
-                    ## print(f"✅ Translated: {input_path}")
                     cmd = fastlog_cmd + ["-v", input_path]
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
+
                 try:
-                    ## print(f"📦 Running command: {' '.join(cmd)}")
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
-                    out_file = os.path.join(fastlog_output_dir, fname + ".txt")
+                    out_file = os.path.join(fastlog_output_dir, os.path.basename(full_path) + ".txt")
                     with open(out_file, "w") as f:
                         f.write(result.stdout)
-                    fastlog_files.append(fname + ".txt")
+                    fastlog_files.append(os.path.basename(out_file))
                 except Exception as e:
                     traceback.print_exc()
                     print(f"⚠️ Failed to parse {fname}: {e}")
+                finally:
+                    if temp_decompressed and os.path.exists(temp_decompressed):
+                        os.remove(temp_decompressed)
+
     return fastlog_files
+
 
 def collect_fastlog_entries(bundle_dir):
     fastlog_cmd = get_fastlog_parser()
     entries = []
+
     for root, _, files in os.walk(bundle_dir):
         for fname in files:
-            if fname.endswith(".supportlog"):
+            if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
+                temp_decompressed = None
                 full_path = os.path.join(root, fname)
-                process_name = os.path.basename(fname).replace(".supportlog", "")
+                process_name = os.path.basename(fname).replace(".supportlog", "").replace(".gz", "")
+
+                if fname.endswith(".gz"):
+                    try:
+                        temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
+                        with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                        full_path = temp_decompressed
+                    except Exception as e:
+                        print(f"⚠️ Failed to decompress {fname}: {e}")
+                        continue
+
                 if isinstance(fastlog_cmd, list):
-                    ## print(f"🪵 Translating to WSL: {full_path}")
                     input_path = translate_path_for_wsl(full_path)
-                    ## print(f"✅ Translated: {input_path}")
                     cmd = fastlog_cmd + ["-v", input_path]
                 else:
                     cmd = [fastlog_cmd, "-v", full_path]
+
                 try:
-                    ## print(f"📦 Running command: {' '.join(cmd)}")
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
                     lines = result.stdout.splitlines()
                     buffer = []
@@ -336,6 +364,10 @@ def collect_fastlog_entries(bundle_dir):
                 except Exception as e:
                     traceback.print_exc()
                     print(f"⚠️ Failed to extract fastlog entries from {fname}: {e}")
+                finally:
+                    if temp_decompressed and os.path.exists(temp_decompressed):
+                        os.remove(temp_decompressed)
+
     return entries
 
 def collect_showtech_and_diag(bundle_dir):
