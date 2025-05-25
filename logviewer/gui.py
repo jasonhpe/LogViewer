@@ -1,4 +1,4 @@
-    try:
+try:
     import tkinter
 except ImportError:
     print("\u274c Tkinter is not installed. Please install it manually for GUI support. Use 'sudo apt install python3-tk'")
@@ -149,8 +149,9 @@ class LogViewerApp:
                     if confirm:
                         parsed = get_parsed_bundles(self.state).get(path)
                         if parsed:
-                            if os.path.exists(bundle_dir):
-                                shutil.rmtree(bundle_dir)
+                            output_path = parsed["output_path"]
+                            if os.path.exists(output_path):
+                                shutil.rmtree(output_path, ignore_errors=True)
                             shutil.rmtree(parsed["output_path"], ignore_errors=True)
                         self.state["parsed_bundles"].pop(path, None)
                         to_remove.append(item)
