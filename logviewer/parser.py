@@ -18,22 +18,23 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 LOG_FILE_PREFIXES = ["event", "messages", "supportlog", "critical", "diagdump"]
 
-def safe_parse(path):
+def safe_parse(path, options=None):
     try:
         output_dir = f"{Path(path).stem}_log_analysis_results"
         if not os.path.exists(os.path.join(output_dir, "parsed_logs.json")):
-            parse_bundle(path, output_dir)
+            parse_bundle(path, output_dir, options=options)
         return {"path": path, "status": "Success", "output": output_dir}
     except Exception as e:
         return {"path": path, "status": "Error", "error": str(e)}
 
-def parse_multiple_bundles(bundle_paths, workers=4):
+def parse_multiple_bundles(bundle_paths, workers=4, options=None):
+    options = options or {}
+    def safe_parse_with_opts(path):
+        return safe_parse(path, options)
+
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = [executor.submit(safe_parse, path) for path in bundle_paths]
-        results = []
-        for future in as_completed(futures):
-            results.append(future.result())
-    return results
+        futures = [executor.submit(safe_parse_with_opts, path) for path in bundle_paths]
+        return [f.result() for f in as_completed(futures)]
 
 def find_readme():
     try:
@@ -584,7 +585,8 @@ def save_text_file_summary(input_path, out_path):
             out.write(content)
     except Exception as e:
         print(f" Failed to process {input_path}: {e}")
-def parse_bundle(bundle_path, output_dir):
+
+def parse_bundle(bundle_path, output_dir, options=None):
     os.makedirs(output_dir, exist_ok=True)
     bundle_dir = extract_bundle(bundle_path)
     if not bundle_dir:
@@ -594,6 +596,12 @@ def parse_bundle(bundle_path, output_dir):
     fastlog_entries = []
     fastlog_files = []
 
+    options = options or {}
+    include_fastlogs = options.get("include_fastlogs", True)
+    include_vsf = options.get("include_vsf", True)
+    include_prevboot = options.get("include_prevboot", True)
+    include_linecards = options.get("include_linecards", True)
+
     # Run log collection phases in parallel
     def collect_logs():
         nonlocal logs
@@ -601,11 +609,13 @@ def parse_bundle(bundle_path, output_dir):
 
     def collect_fastlog():
         nonlocal fastlog_entries
-        fastlog_entries = collect_fastlog_entries(bundle_dir)
+        if include_fastlogs:
+            fastlog_entries = collect_fastlog_entries(bundle_dir)
 
     def collect_fastlog_files():
         nonlocal fastlog_files
-        fastlog_files = collect_fastlogs(bundle_dir, output_dir)
+        if include_fastlogs:
+            fastlog_files = collect_fastlogs(bundle_dir, output_dir)
 
     threads = []
     for fn in [collect_logs, collect_fastlog, collect_fastlog_files]:
@@ -620,6 +630,7 @@ def parse_bundle(bundle_path, output_dir):
 
     with open(os.path.join(output_dir, "parsed_logs.json"), "w") as f:
         json.dump(logs, f, indent=2)
+
     with open(os.path.join(output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
 
@@ -638,49 +649,47 @@ def parse_bundle(bundle_path, output_dir):
         out_name = name.replace(os.sep, "_") + "_diagdump.txt"
         full_path = os.path.join(diag_dir, out_name)
         save_text_file_summary(path, full_path)
+
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
+    # Parse Linecards if enabled
+    if include_linecards:
+        linecard_dir = os.path.join(output_dir, "linecards")
+        os.makedirs(linecard_dir, exist_ok=True)
+        lc_threads = []
+        for root, _, files in os.walk(bundle_dir):
+            for file in files:
+                if re.match(r"lc\d+\.tar\.gz", file):
+                    lc_tar = os.path.join(root, file)
+                    lc_name = file.replace(".tar.gz", "")
+                    lc_output = os.path.join(linecard_dir, lc_name)
+                    t = threading.Thread(target=parse_linecard_bundle, args=(lc_tar, lc_output))
+                    lc_threads.append(t)
+                    t.start()
+        for t in lc_threads:
+            t.join()
 
+    # Parse VSF members if enabled
+    if include_vsf:
+        members_dir = os.path.join(output_dir, "members")
+        os.makedirs(members_dir, exist_ok=True)
+        vsf_threads = []
+        for root, _, files in os.walk(bundle_dir):
+            for file in files:
+                if re.match(r"mem_\d+_support_files\.tar\.gz", file):
+                    member_tar = os.path.join(root, file)
+                    member_name = file.replace("_support_files.tar.gz", "")
+                    member_output = os.path.join(members_dir, member_name)
+                    t = threading.Thread(target=parse_vsf_member, args=(member_tar, member_output))
+                    vsf_threads.append(t)
+                    t.start()
+        for t in vsf_threads:
+            t.join()
 
-
-
-    # Parse Linecards in parallel
-    linecard_dir = os.path.join(output_dir, "linecards")
-    os.makedirs(linecard_dir, exist_ok=True)
-
-    lc_threads = []
-    for root, _, files in os.walk(bundle_dir):
-        for file in files:
-            if re.match(r"lc\d+\.tar\.gz", file):  # Detect lc1.tar.gz, lc2.tar.gz, etc.
-                lc_tar = os.path.join(root, file)
-                lc_name = file.replace(".tar.gz", "")
-                lc_output = os.path.join(linecard_dir, lc_name)
-                t = threading.Thread(target=parse_linecard_bundle, args=(lc_tar, lc_output))
-                lc_threads.append(t)
-                t.start()
-    for t in lc_threads:
-        t.join()
-	    
-    # Parse VSF members in parallel
-    members_dir = os.path.join(output_dir, "members")
-    os.makedirs(members_dir, exist_ok=True)
-
-    vsf_threads = []
-    for root, _, files in os.walk(bundle_dir):
-        for file in files:
-            if re.match(r"mem_\d+_support_files\.tar\.gz", file):
-                member_tar = os.path.join(root, file)
-                member_name = file.replace("_support_files.tar.gz", "")
-                member_output = os.path.join(members_dir, member_name)
-                t = threading.Thread(target=parse_vsf_member, args=(member_tar, member_output))
-                vsf_threads.append(t)
-                t.start()
-    for t in vsf_threads:
-        t.join()
-
-    # Parse previous boots
-    parse_previous_boot_logs(bundle_dir, output_dir)
+    # Parse Previous Boot Logs if enabled
+    if include_prevboot:
+        parse_previous_boot_logs(bundle_dir, output_dir)
 
     # Add README if found
     readme_path = find_readme()
@@ -700,6 +709,8 @@ def parse_bundle(bundle_path, output_dir):
         print(f"⚠️ Failed to clean temporary directory {bundle_dir}: {e}")
 
     return output_dir
+
+
 
 
 
