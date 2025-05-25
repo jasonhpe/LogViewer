@@ -11,8 +11,8 @@ import tempfile
 import importlib.util
 import logviewer
 import traceback
-import threading
 import gzip
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 LOG_FILE_PREFIXES = ["event", "messages", "supportlog", "critical", "diagdump"]
