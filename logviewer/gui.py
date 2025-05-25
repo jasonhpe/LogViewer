@@ -322,7 +322,7 @@ class LogViewerApp:
         # Check if it exited early
         if proc.poll() is not None:
             out, err = proc.communicate()
-            self.status.config(text="❌ Streamlit failed to launch", fg="red")
+            self.status.config(text="❌ Viewer failed to launch", fg="red")
             print("Streamlit failed output:")
             print(out.decode(errors="ignore"))
             print(err.decode(errors="ignore"))
