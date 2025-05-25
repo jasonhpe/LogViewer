@@ -36,9 +36,9 @@ class LogViewerApp:
 
     
     def update_cpu_usage(self):
-    usage = psutil.cpu_percent(interval=1)
-    self.cpu_usage_label.config(text=f"CPU Usage: {usage}%")
-    self.root.after(1000, self.update_cpu_usage)
+        usage = psutil.cpu_percent(interval=1)
+        self.cpu_usage_label.config(text=f"CPU Usage: {usage}%")
+        self.root.after(1000, self.update_cpu_usage)
     
     
     def create_widgets(self):
