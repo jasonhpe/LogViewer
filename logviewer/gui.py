@@ -186,7 +186,7 @@ class LogViewerApp:
 
         def background_parse():
             from logviewer.parser import parse_multiple_bundles
-            results = parse_multiple_bundles(filepaths)
+            results = parse_multiple_bundles(filepaths, workers=self.worker_var.get())
 
             for result in results:
                 for item in self.tree.get_children():
