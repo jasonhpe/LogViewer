@@ -447,7 +447,8 @@ def collect_fastlogs(bundle_dir, output_dir):
         cmd = [fastlog_cmd, "-v", full_path] if isinstance(fastlog_cmd, str) else fastlog_cmd + ["-v", translate_path_for_wsl(full_path)]
 
         try:
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
+            creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+	    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, creationflags=creationflags)
             out_file = os.path.join(fastlog_output_dir, os.path.basename(full_path) + ".txt")
             with open(out_file, "w") as f:
                 f.write(result.stdout)
@@ -496,7 +497,8 @@ def collect_fastlog_entries(bundle_dir):
 
         local_entries = []
         try:
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
+            creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+	    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, creationflags=creationflags)
             lines = result.stdout.splitlines()
             buffer = []
             timestamp = None
