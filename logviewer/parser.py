@@ -91,7 +91,7 @@ def parse_flat_boot_logs(member_extracted_dir, member_output_dir):
         t.join()
 
 def parse_previous_boot_logs(bundle_dir, output_dir):
-    prev_dir = os.path.join(bundle_dir, "previous_boot_logs")
+    prev_dir = os.path.join(bundle_dir, "prev_boot_logs")  # Updated directory name
     if not os.path.exists(prev_dir):
         return
 
@@ -139,6 +139,7 @@ def parse_previous_boot_logs(bundle_dir, output_dir):
         threads.append(t)
     for t in threads:
         t.join()
+	    
 def parse_vsf_member(tar_path, member_output_dir):
     print(f"📦 Parsing VSF member bundle: {tar_path}")
     extracted = extract_bundle(tar_path, target_dir=member_output_dir + "_tmp")
