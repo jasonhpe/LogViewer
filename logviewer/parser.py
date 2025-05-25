@@ -11,6 +11,7 @@ import tempfile
 import importlib.util
 import logviewer
 import traceback
+import gzip
 from concurrent.futures import ProcessPoolExecutor
 
 
