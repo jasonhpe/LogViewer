@@ -13,8 +13,8 @@ import logviewer
 import traceback
 from concurrent.futures import ProcessPoolExecutor
 
-def parse_multiple_bundles(bundle_paths, workers=4):
-    def safe_parse(path):
+
+def safe_parse(path):
         try:
             output_dir = f"{Path(path).stem}_log_analysis_results"
             if not os.path.exists(os.path.join(output_dir, "parsed_logs.json")):
@@ -22,6 +22,8 @@ def parse_multiple_bundles(bundle_paths, workers=4):
             return {"path": path, "status": "Success", "output": output_dir}
         except Exception as e:
             return {"path": path, "status": "Error", "error": str(e)}
+            
+def parse_multiple_bundles(bundle_paths, workers=4):
 
     with ProcessPoolExecutor(max_workers=workers) as executor:
         results = list(executor.map(safe_parse, bundle_paths))
