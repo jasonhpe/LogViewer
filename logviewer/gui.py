@@ -4,6 +4,7 @@ except ImportError:
     print("\u274c Tkinter is not installed. Please install it manually for GUI support. Use 'sudo apt install python3-tk'")
     exit(1)
 
+import builtins
 import psutil
 import time
 import multiprocessing
@@ -32,7 +33,21 @@ class LogViewerApp:
         self.viewing_in_progress = False
 
         self.create_widgets()
+        original_print = builtins.print
+        def gui_print(*args, **kwargs):
+            message = " ".join(str(arg) for arg in args)
+            if hasattr(self, "log_debug"):
+                self.log_debug(message)
+            original_print(*args, **kwargs)
+
+        builtins.print = gui_print
         self.load_previous_bundles()
+
+    def log_debug(self, message):
+        self.debug_output.config(state="normal")
+        self.debug_output.insert(tk.END, f"{message}\n")
+        self.debug_output.see(tk.END)
+        self.debug_output.config(state="disabled")
 
     
     def update_cpu_usage(self):
@@ -52,6 +67,9 @@ class LogViewerApp:
         tk.Button(frame, text="Upload .tar.gz", command=self.select_file, bg="#007acc", fg="white").grid(row=0, column=0, padx=5)
         tk.Button(frame, text="Scan Directory", command=self.scan_directory, bg="#007acc", fg="white").grid(row=0, column=1, padx=5)
         tk.Button(frame, text="Clear", command=self.clear_entries, bg="#ffc107", fg="black").grid(row=0, column=2, padx=5)
+
+        self.debug_output = tk.Text(self.root, height=10, state="disabled", bg="#f4f4f4", fg="black", wrap="word")
+        self.debug_output.pack(fill="both", expand=False, padx=10, pady=(5, 10))
 
         
         self.worker_var = tk.IntVar(value=max(1, multiprocessing.cpu_count() - 1))
