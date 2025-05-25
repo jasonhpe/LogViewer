@@ -133,10 +133,31 @@ class LogViewerApp:
         self.tree.insert("", "end", values=(filepath, "Analyzed" if analyzed else "Pending"))
 
     def load_previous_bundles(self):
+        # Load from existing saved state
         parsed = get_parsed_bundles(self.state)
+
+        # Track which paths are already listed in state
+        known_paths = set(parsed.keys())
+
+        # Add those that still exist
         for bundle_path, meta in parsed.items():
             if os.path.exists(bundle_path):
                 self.tree.insert("", "end", values=(bundle_path, "Analyzed"))
+
+        # Fallback: scan current folder for _log_analysis_results dirs
+        for child in Path(".").iterdir():
+            if child.is_dir() and child.name.endswith("_log_analysis_results"):
+                parsed_log = child / "parsed_logs.json"
+                if parsed_log.exists():
+                    # Check if already tracked in state
+                    if str(child) not in known_paths:
+                        self.tree.insert("", "end", values=(str(child), "Analyzed"))
+                        self.state["parsed_bundles"][str(child)] = {
+                            "output_path": str(child.resolve())
+                        }
+
+        # Save updated state if we added anything
+        save_state(self.state)
 
     def analyze_selected(self):
         for item in self.tree.selection():
@@ -160,6 +181,8 @@ class LogViewerApp:
         finally:
             self.hide_progress()
 
+
+
     def start_viewer(self):
         selected = self.tree.selection()
         if self.viewing_in_progress:
@@ -179,8 +202,29 @@ class LogViewerApp:
                 })
 
         if not entries:
-            self.status.config(text="No valid parsed bundles to view", fg="red")
-            return
+            # Fallback: try scanning log_analysis_results/
+            fallback_dir = Path(".")
+            recovered = []
+            for child in fallback_dir.iterdir():
+                if child.is_dir() and child.name.endswith("_log_analysis_results"):
+                    parsed_path = child / "parsed_logs.json"
+                    if parsed_path.exists():
+                        recovered.append({
+                            "name": child.name,
+                            "path": str(child.resolve())
+                        })
+                        # Optionally repopulate state
+                        self.state["parsed_bundles"][str(child)] = {
+                            "output_path": str(child.resolve())
+                        }
+
+            if recovered:
+                save_state(self.state)
+                entries = recovered
+                self.status.config(text=f"Recovered {len(entries)} parsed bundles", fg="blue")
+            else:
+                self.status.config(text="No valid parsed bundles to view", fg="red")
+                return
 
         config = {
             "mode": "carousel" if len(entries) > 1 else "single",
@@ -196,7 +240,12 @@ class LogViewerApp:
         self.running_servers["streamlit"] = (proc, port)
         self.status.config(text=f"Viewer running on http://localhost:{port}", fg="green")
         self.viewing_in_progress = True
-        os.system(f"xdg-open http://localhost:{port} 2>/dev/null &")
+
+        # Platform-safe open browser
+        if os.name == "nt":  # Windows
+            os.system(f"start http://localhost:{port}")
+        elif os.name == "posix":
+            os.system(f"xdg-open http://localhost:{port} 2>/dev/null &")
 
     def stop_viewer(self):
         if not self.running_servers:
