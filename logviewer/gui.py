@@ -298,6 +298,7 @@ class LogViewerApp:
         selected = self.tree.selection()
         if self.viewing_in_progress:
             self.status.config(text="Viewer already running", fg="orange")
+            self.log_debug("⚠️ Viewer already running. Skipping launch.")
             return
 
         parsed_bundles = get_parsed_bundles()
@@ -313,7 +314,6 @@ class LogViewerApp:
                 })
 
         if not entries:
-            # Fallback: try scanning log_analysis_results/
             fallback_dir = Path(".")
             recovered = []
             for child in fallback_dir.iterdir():
@@ -324,15 +324,14 @@ class LogViewerApp:
                             "name": child.name,
                             "path": str(child.resolve())
                         })
-                        # Optionally repopulate state
                         add_parsed_bundle(str(child), str(child.resolve()))
-
             if recovered:
-                
                 entries = recovered
                 self.status.config(text=f"Recovered {len(entries)} parsed bundles", fg="blue")
+                self.log_debug(f"🔄 Recovered {len(entries)} parsed bundles from fallback scan.")
             else:
                 self.status.config(text="No valid parsed bundles to view", fg="red")
+                self.log_debug("❌ No parsed bundles available to start the viewer.")
                 return
 
         config = {
@@ -343,34 +342,34 @@ class LogViewerApp:
 
         with open("config.json", "w") as f:
             json.dump(config, f, indent=2)
+        self.log_debug(f"⚙️ Created config.json with {len(entries)} bundle(s)")
 
         port = get_next_available_port()
+        self.log_debug(f"🚀 Launching Streamlit on port {port}...")
+
         proc = subprocess.Popen(
             ["streamlit", "run", "app.py", "--server.port", str(port)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
         )
-        
-        # Delay to give Streamlit time to start
+
         time.sleep(2)
 
-        # Check if it exited early
         if proc.poll() is not None:
             out, err = proc.communicate()
             self.status.config(text="❌ Viewer failed to launch", fg="red")
-            self.log_debug("Streamlit failed output:")
+            self.log_debug("❌ Streamlit failed to launch. Output below:")
             self.log_debug(out.decode(errors="ignore"))
             self.log_debug(err.decode(errors="ignore"))
-            self.log_debug("❌ Viewer process exited early.")
             return
-    
+
         self.running_servers["streamlit"] = (proc, port)
         self.status.config(text=f"Viewer running on http://localhost:{port}", fg="green")
+        self.log_debug(f"✅ Viewer running at http://localhost:{port}")
         self.viewing_in_progress = True
 
-        # Platform-safe open browser
-        if os.name == "nt":  # Windows
+        if os.name == "nt":
             os.system(f"start http://localhost:{port}")
         elif os.name == "posix":
             os.system(f"xdg-open http://localhost:{port} 2>/dev/null &")
