@@ -92,9 +92,11 @@ class LogViewerApp:
         self.include_fastlogs = tk.BooleanVar(value=True)
         self.include_vsf = tk.BooleanVar(value=True)
         self.include_prevboot = tk.BooleanVar(value=True)
+        self.include_linecard = tk.BooleanVar(value=True)
 
         tk.Checkbutton(self.root, text="Parse Fastlogs", variable=self.include_fastlogs).pack()
         tk.Checkbutton(self.root, text="Parse VSF Members", variable=self.include_vsf).pack()
+        tk.Checkbutton(self.root, text="Parse Linecard logs", variable=self.include_linecard).pack()
         tk.Checkbutton(self.root, text="Parse Previous Boot Logs", variable=self.include_prevboot).pack()
         
         tk.Button(action_frame, text="Analyze Selected", command=self.analyze_selected, bg="#28a745", fg="white").grid(row=0, column=0, padx=10)
@@ -215,6 +217,7 @@ class LogViewerApp:
                 options={
                     "include_fastlogs": self.include_fastlogs.get(),
                     "include_vsf": self.include_vsf.get(),
+                    "include_linecard": self.include_linecard.get(),
                     "include_prevboot": self.include_prevboot.get()
                 }
             )
