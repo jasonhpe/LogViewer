@@ -44,7 +44,55 @@ def find_readme():
     except Exception as e:
         print(f"❌ Could not locate README.md: {e}")
     return None
-	
+
+def parse_linecard_bundle(tar_path, linecard_output_dir):
+    print(f"📦 Parsing Linecard bundle: {tar_path}")
+    extracted = extract_bundle(tar_path, target_dir=linecard_output_dir + "_tmp")
+    if not extracted:
+        print(f"⚠️ Could not extract {tar_path}")
+        return
+
+    logs = []
+    fastlog_entries = []
+    fastlog_files = []
+
+    def get_logs():
+        nonlocal logs
+        logs = collect_event_logs(extracted)
+
+    def get_fastlog_entries():
+        nonlocal fastlog_entries
+        fastlog_entries = collect_fastlog_entries(extracted)
+
+    def get_fastlog_files():
+        nonlocal fastlog_files
+        fastlog_files = collect_fastlogs(extracted, linecard_output_dir)
+
+    threads = []
+    for fn in [get_logs, get_fastlog_entries, get_fastlog_files]:
+        t = threading.Thread(target=fn)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+
+    logs.extend(fastlog_entries)
+    logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
+
+    os.makedirs(linecard_output_dir, exist_ok=True)
+    with open(os.path.join(linecard_output_dir, "parsed_logs.json"), "w") as f:
+        json.dump(logs, f, indent=2)
+    with open(os.path.join(linecard_output_dir, "fastlog_index.json"), "w") as f:
+        json.dump(fastlog_files, f, indent=2)
+
+    # Optional: parse previous boots if they exist
+    parse_previous_boot_logs(extracted, linecard_output_dir)
+
+    try:
+        shutil.rmtree(extracted)
+    except Exception as e:
+        print(f"⚠️ Failed to clean temp LC dir {extracted}: {e}")
+	    
 def parse_flat_boot_logs(member_extracted_dir, member_output_dir):
     def handle_boot_folder(entry):
         boot_path = os.path.join(member_extracted_dir, entry)
@@ -593,6 +641,27 @@ def parse_bundle(bundle_path, output_dir):
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
+
+
+
+
+    # Parse Linecards in parallel
+    linecard_dir = os.path.join(output_dir, "linecards")
+    os.makedirs(linecard_dir, exist_ok=True)
+
+    lc_threads = []
+    for root, _, files in os.walk(bundle_dir):
+        for file in files:
+            if re.match(r"lc\d+\.tar\.gz", file):  # Detect lc1.tar.gz, lc2.tar.gz, etc.
+                lc_tar = os.path.join(root, file)
+                lc_name = file.replace(".tar.gz", "")
+                lc_output = os.path.join(linecard_dir, lc_name)
+                t = threading.Thread(target=parse_linecard_bundle, args=(lc_tar, lc_output))
+                lc_threads.append(t)
+                t.start()
+    for t in lc_threads:
+        t.join()
+	    
     # Parse VSF members in parallel
     members_dir = os.path.join(output_dir, "members")
     os.makedirs(members_dir, exist_ok=True)
