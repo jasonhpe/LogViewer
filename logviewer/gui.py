@@ -160,10 +160,40 @@ class LogViewerApp:
         save_state(self.state)
 
     def analyze_selected(self):
-        for item in self.tree.selection():
-            filepath = self.tree.item(item, "values")[0]
+        selected_items = self.tree.selection()
+        if not selected_items:
+            messagebox.showinfo("No Selection", "Please select at least one support bundle to analyze.")
+            return
+
+        filepaths = [self.tree.item(item, "values")[0] for item in selected_items]
+
+        # Update status to Analyzing in GUI
+        for item in selected_items:
             self.tree.set(item, column="status", value="Analyzing")
-            threading.Thread(target=self.run_analysis, args=(filepath, item), daemon=True).start()
+
+        self.status.config(text="Analyzing selected bundles...", fg="blue")
+        self.show_progress()
+
+        def background_parse():
+            from logviewer.parser import parse_multiple_bundles
+            results = parse_multiple_bundles(filepaths)
+
+            for result in results:
+                for item in self.tree.get_children():
+                    path = self.tree.item(item, "values")[0]
+                    if path == result["path"]:
+                        if result["status"] == "Success":
+                            add_parsed_bundle(self.state, result["path"], result["output"])
+                            self.tree.set(item, column="status", value="Analyzed")
+                        else:
+                            self.tree.set(item, column="status", value="Error")
+                            print(f"❌ Failed to parse {result['path']}: {result.get('error')}")
+
+            save_state(self.state)
+            self.status.config(text="Done analyzing selected bundles.", fg="green")
+            self.hide_progress()
+
+        threading.Thread(target=background_parse, daemon=True).start()
 
     def run_analysis(self, filepath, tree_id):
         self.status.config(text=f"Analyzing {filepath}...")
