@@ -194,6 +194,13 @@ def get_vsf_members(bundle_output_dir):
     return [name for name in os.listdir(members_dir)
             if os.path.isdir(os.path.join(members_dir, name)) and name.startswith("mem_")]
 
+def get_linecards(bundle_output_dir):
+    linecards_dir = os.path.join(bundle_output_dir, "linecards")
+    if not os.path.exists(linecards_dir):
+        return []
+    return [name for name in os.listdir(linecards_dir)
+            if os.path.isdir(os.path.join(linecards_dir, name)) and name.startswith("lc")]
+
 def render_isp_modal(path, key_prefix="default"):
     isp_file = os.path.join(path, "isp.txt")
     if not os.path.exists(isp_file):
@@ -236,7 +243,15 @@ if MODE == "single":
         st.sidebar.write("No VSF members detected.")
         vsf_member = "Main Bundle"
         target_path = bundle_path
-
+    
+    linecards = get_linecards(bundle_path)
+    if linecards:
+        st.sidebar.markdown("### 📟 Linecards")
+        linecard = st.sidebar.selectbox("Linecard:", ["None"] + linecards, key=f"lc_select_{selected_bundle['name']}")
+        if linecard != "None":
+            target_path = os.path.join(bundle_path, "linecards", linecard)
+            show_showtech = False 
+            
     boot_options = get_boot_contexts(target_path)
     st.sidebar.markdown(f"### 🔄 Select Boot Context ({vsf_member})")
     boot_context = st.sidebar.selectbox("Boot:", boot_options, key=f"bootctx_{selected_bundle['name']}_{vsf_member}")
@@ -301,6 +316,14 @@ elif MODE == "carousel":
         st.sidebar.write("No VSF members detected.")
         vsf_member = "Main Bundle"
         target_path = bundle_path
+
+    linecards = get_linecards(bundle_path)
+    if linecards:
+        st.sidebar.markdown("### 📟 Linecards")
+        linecard = st.sidebar.selectbox("Linecard:", ["None"] + linecards, key=f"lc_select_{selected_bundle['name']}")
+        if linecard != "None":
+            target_path = os.path.join(bundle_path, "linecards", linecard)
+            show_showtech = False 
 
     boot_options = get_boot_contexts(target_path)
     st.sidebar.markdown(f"### 🔄 Select Boot Context ({vsf_member})")
