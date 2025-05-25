@@ -12,26 +12,27 @@ import importlib.util
 import logviewer
 import traceback
 import gzip
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 LOG_FILE_PREFIXES = ["event", "messages", "supportlog", "critical", "diagdump"]
 
 def safe_parse(path):
-        try:
-            output_dir = f"{Path(path).stem}_log_analysis_results"
-            if not os.path.exists(os.path.join(output_dir, "parsed_logs.json")):
-                parse_bundle(path, output_dir)
-            return {"path": path, "status": "Success", "output": output_dir}
-        except Exception as e:
-            return {"path": path, "status": "Error", "error": str(e)}
-            
+    try:
+        output_dir = f"{Path(path).stem}_log_analysis_results"
+        if not os.path.exists(os.path.join(output_dir, "parsed_logs.json")):
+            parse_bundle(path, output_dir)
+        return {"path": path, "status": "Success", "output": output_dir}
+    except Exception as e:
+        return {"path": path, "status": "Error", "error": str(e)}
+
 def parse_multiple_bundles(bundle_paths, workers=4):
-
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        results = list(executor.map(safe_parse, bundle_paths))
-
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(safe_parse, path) for path in bundle_paths]
+        results = []
+        for future in as_completed(futures):
+            results.append(future.result())
     return results
-    
+
 def find_readme():
     try:
         root = Path(logviewer.__file__).resolve().parent
@@ -41,54 +42,102 @@ def find_readme():
     except Exception as e:
         print(f"❌ Could not locate README.md: {e}")
     return None
-
+	
 def parse_flat_boot_logs(member_extracted_dir, member_output_dir):
-    for entry in os.listdir(member_extracted_dir):
+    def handle_boot_folder(entry):
         boot_path = os.path.join(member_extracted_dir, entry)
-        if os.path.isdir(boot_path) and entry.startswith("boot"):
-            print(f"🧠 Parsing VSF flat boot folder: {entry}")
-            out_path = os.path.join(member_output_dir, "previous", entry)
-            os.makedirs(out_path, exist_ok=True)
+        if not os.path.isdir(boot_path) or not entry.startswith("boot"):
+            return
+        print(f"🧠 Parsing VSF flat boot folder: {entry}")
+        out_path = os.path.join(member_output_dir, "previous", entry)
+        os.makedirs(out_path, exist_ok=True)
 
+        logs = []
+        fastlog_entries = []
+
+        def get_logs():
+            nonlocal logs
             logs = collect_event_logs(boot_path)
-            logs.extend(collect_fastlog_entries(boot_path))
-            logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
 
-            if not logs:
-                print(f"⚠️ No logs parsed from {boot_path}")
+        def get_fastlogs():
+            nonlocal fastlog_entries
+            fastlog_entries = collect_fastlog_entries(boot_path)
 
-            with open(os.path.join(out_path, "parsed_logs.json"), "w") as f:
-                json.dump(logs, f, indent=2)
+        t1 = threading.Thread(target=get_logs)
+        t2 = threading.Thread(target=get_fastlogs)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
 
-            collect_fastlogs(boot_path, out_path)
-            
-    
+        logs.extend(fastlog_entries)
+        logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
+
+        if not logs:
+            print(f"⚠️ No logs parsed from {boot_path}")
+
+        with open(os.path.join(out_path, "parsed_logs.json"), "w") as f:
+            json.dump(logs, f, indent=2)
+
+        collect_fastlogs(boot_path, out_path)
+
+    threads = []
+    for entry in os.listdir(member_extracted_dir):
+        t = threading.Thread(target=handle_boot_folder, args=(entry,))
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+
 def parse_previous_boot_logs(bundle_dir, output_dir):
     prev_dir = os.path.join(bundle_dir, "previous_boot_logs")
     if not os.path.exists(prev_dir):
         return
 
-    for entry in os.listdir(prev_dir):
+    def handle_boot_folder(entry):
         boot_path = os.path.join(prev_dir, entry)
-        if os.path.isdir(boot_path) and entry.startswith("boot"):
-            print(f"🔁 Parsing previous boot: {entry}")
-            out_path = os.path.join(output_dir, "previous", entry)
-            os.makedirs(out_path, exist_ok=True)
+        if not os.path.isdir(boot_path) or not entry.startswith("boot"):
+            return
+        print(f"🔁 Parsing previous boot: {entry}")
+        out_path = os.path.join(output_dir, "previous", entry)
+        os.makedirs(out_path, exist_ok=True)
 
+        logs = []
+        fastlog_entries = []
+
+        def get_logs():
+            nonlocal logs
             logs = collect_event_logs(boot_path)
-            logs.extend(collect_fastlog_entries(boot_path))
-            logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
 
-            if not logs:
-                print(f"⚠️ No logs parsed from {boot_path}")
-                
-            with open(os.path.join(out_path, "parsed_logs.json"), "w") as f:
-                json.dump(logs, f, indent=2)
+        def get_fastlogs():
+            nonlocal fastlog_entries
+            fastlog_entries = collect_fastlog_entries(boot_path)
 
-            collect_fastlogs(boot_path, out_path)
+        t1 = threading.Thread(target=get_logs)
+        t2 = threading.Thread(target=get_fastlogs)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
 
-    
-            
+        logs.extend(fastlog_entries)
+        logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
+
+        if not logs:
+            print(f"⚠️ No logs parsed from {boot_path}")
+
+        with open(os.path.join(out_path, "parsed_logs.json"), "w") as f:
+            json.dump(logs, f, indent=2)
+
+        collect_fastlogs(boot_path, out_path)
+
+    threads = []
+    for entry in os.listdir(prev_dir):
+        t = threading.Thread(target=handle_boot_folder, args=(entry,))
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
 def parse_vsf_member(tar_path, member_output_dir):
     print(f"📦 Parsing VSF member bundle: {tar_path}")
     extracted = extract_bundle(tar_path, target_dir=member_output_dir + "_tmp")
@@ -96,18 +145,39 @@ def parse_vsf_member(tar_path, member_output_dir):
         print(f"⚠️ Could not extract {tar_path}")
         return
 
-    logs = collect_event_logs(extracted)
-    logs.extend(collect_fastlog_entries(extracted))
+    logs = []
+    fastlog_entries = []
+    fastlog_files = []
+
+    def get_logs():
+        nonlocal logs
+        logs = collect_event_logs(extracted)
+
+    def get_fastlogs():
+        nonlocal fastlog_entries
+        fastlog_entries = collect_fastlog_entries(extracted)
+
+    def get_fastlog_files():
+        nonlocal fastlog_files
+        fastlog_files = collect_fastlogs(extracted, member_output_dir)
+
+    threads = []
+    for fn in [get_logs, get_fastlogs, get_fastlog_files]:
+        t = threading.Thread(target=fn)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+
+    logs.extend(fastlog_entries)
     logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
 
-    fastlog_files = collect_fastlogs(extracted, member_output_dir)
     os.makedirs(member_output_dir, exist_ok=True)
     with open(os.path.join(member_output_dir, "parsed_logs.json"), "w") as f:
         json.dump(logs, f, indent=2)
     with open(os.path.join(member_output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
-    
-    # Copy diagdump_*.txt to a /feature folder
+
     diag_dir = os.path.join(member_output_dir, "feature")
     os.makedirs(diag_dir, exist_ok=True)
     for root, _, files in os.walk(extracted):
@@ -117,46 +187,12 @@ def parse_vsf_member(tar_path, member_output_dir):
 
     parse_previous_boot_logs(extracted, member_output_dir)
     parse_flat_boot_logs(extracted, member_output_dir)
-    
+
     try:
         shutil.rmtree(extracted)
     except Exception as e:
         print(f"⚠️ Failed to clean temp member dir {extracted}: {e}")
-        
-def get_fastlog_parser():
-    root = Path(__file__).resolve().parent
-    exec_name = "fastlogParser"
-    system = platform.system()
-
-    if system == "Linux":
-        local_path = root / exec_name
-        if not os.access(local_path, os.X_OK):
-            temp_exec = Path(tempfile.gettempdir()) / exec_name
-            if not temp_exec.exists():
-                shutil.copy2(local_path, temp_exec)
-                temp_exec.chmod(0o755)
-            return str(temp_exec)
-        return str(local_path)
-
-    elif system == "Windows":
-        local_path = Path(tempfile.gettempdir()) / exec_name
-        if not local_path.exists():
-            packaged_path = root / exec_name
-            if not packaged_path.exists():
-                raise FileNotFoundError(f"fastlogParser not found at {packaged_path}")
-            shutil.copy2(packaged_path, local_path)
-
-        # Convert path to WSL-compatible format
-        drive, rest = os.path.splitdrive(str(local_path))
-        if not drive or len(drive) < 2:
-            raise ValueError(f"Invalid path for WSL conversion: {local_path}")
-            
-        rest_fixed = rest.replace("\\", "/")
-        wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
-        return ["wsl", wsl_path]
-
-    raise RuntimeError(f"Unsupported platform: {system}")
-    
+		
 def extract_bundle(path, target_dir=None):
     name = os.path.basename(path).replace(".tar.gz", "")
     tmp_dir = target_dir or os.path.join("tmp_extracted", name)
@@ -173,8 +209,6 @@ def read_lines(path):
     if os.path.isdir(path):
         if platform.system() == "Windows":
             drive, rest = os.path.splitdrive(path)
-            if not drive or len(drive) < 2:
-                raise ValueError(f"Invalid path for WSL conversion: {local_path}")
             rest_fixed = rest.replace("\\", "/")
             wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
             journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
@@ -193,8 +227,6 @@ def read_lines(path):
         except Exception as e:
             print(f"⚠️ Failed to read file {path}: {e}")
             return []
-
-
 def parse_line(line):
     patterns = [
         re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+Event\|(?P<event_id>\d+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<message>.+)'),
@@ -217,14 +249,12 @@ def parse_line(line):
             return group
     return None
 
-
 def collect_event_logs(bundle_dir):
     logs = []
     for root, _, files in os.walk(bundle_dir):
         for file in files:
             full_path = os.path.join(root, file)
 
-            # Handle compressed .gz log files
             if file.endswith(".gz") and any(file.startswith(prefix) for prefix in LOG_FILE_PREFIXES):
                 try:
                     with gzip.open(full_path, "rt", errors='ignore') as f:
@@ -237,7 +267,6 @@ def collect_event_logs(bundle_dir):
                     print(f"⚠️ Failed to parse compressed log {file}: {e}")
                 continue
 
-            # Handle normal .log and journal files
             if file.endswith(".log") or "journal" in file:
                 for line in read_lines(full_path):
                     entry = parse_line(line)
@@ -261,112 +290,130 @@ def collect_fastlogs(bundle_dir, output_dir):
     fastlog_output_dir = os.path.join(output_dir, "fastlogs")
     os.makedirs(fastlog_output_dir, exist_ok=True)
 
-    for root, _, files in os.walk(bundle_dir):
-        for fname in files:
-            if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
-                temp_decompressed = None
-                full_path = os.path.join(root, fname)
+    def process_file(fname, root):
+        temp_decompressed = None
+        full_path = os.path.join(root, fname)
 
-                if fname.endswith(".gz"):
-                    try:
-                        temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
-                        with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                        full_path = temp_decompressed
-                    except Exception as e:
-                        print(f"⚠️ Failed to decompress {fname}: {e}")
-                        continue
+        if fname.endswith(".gz"):
+            try:
+                temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
+                with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                full_path = temp_decompressed
+            except Exception as e:
+                print(f"⚠️ Failed to decompress {fname}: {e}")
+                return None
 
-                if isinstance(fastlog_cmd, list):
-                    input_path = translate_path_for_wsl(full_path)
-                    cmd = fastlog_cmd + ["-v", input_path]
-                else:
-                    cmd = [fastlog_cmd, "-v", full_path]
+        if isinstance(fastlog_cmd, list):
+            input_path = translate_path_for_wsl(full_path)
+            cmd = fastlog_cmd + ["-v", input_path]
+        else:
+            cmd = [fastlog_cmd, "-v", full_path]
 
-                try:
-                    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
-                    out_file = os.path.join(fastlog_output_dir, os.path.basename(full_path) + ".txt")
-                    with open(out_file, "w") as f:
-                        f.write(result.stdout)
-                    fastlog_files.append(os.path.basename(out_file))
-                except Exception as e:
-                    traceback.print_exc()
-                    print(f"⚠️ Failed to parse {fname}: {e}")
-                finally:
-                    if temp_decompressed and os.path.exists(temp_decompressed):
-                        os.remove(temp_decompressed)
+        try:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
+            out_file = os.path.join(fastlog_output_dir, os.path.basename(full_path) + ".txt")
+            with open(out_file, "w") as f:
+                f.write(result.stdout)
+            return os.path.basename(out_file)
+        except Exception as e:
+            traceback.print_exc()
+            print(f"⚠️ Failed to parse {fname}: {e}")
+            return None
+        finally:
+            if temp_decompressed and os.path.exists(temp_decompressed):
+                os.remove(temp_decompressed)
+
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for root, _, files in os.walk(bundle_dir):
+            for fname in files:
+                if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
+                    futures.append(executor.submit(process_file, fname, root))
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                fastlog_files.append(result)
 
     return fastlog_files
-
-
 def collect_fastlog_entries(bundle_dir):
     fastlog_cmd = get_fastlog_parser()
     entries = []
 
-    for root, _, files in os.walk(bundle_dir):
-        for fname in files:
-            if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
-                temp_decompressed = None
-                full_path = os.path.join(root, fname)
-                process_name = os.path.basename(fname).replace(".supportlog", "").replace(".gz", "")
+    def process_file(fname, root):
+        temp_decompressed = None
+        full_path = os.path.join(root, fname)
+        process_name = os.path.basename(fname).replace(".supportlog", "").replace(".gz", "")
 
-                if fname.endswith(".gz"):
-                    try:
-                        temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
-                        with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                        full_path = temp_decompressed
-                    except Exception as e:
-                        print(f"⚠️ Failed to decompress {fname}: {e}")
-                        continue
+        if fname.endswith(".gz"):
+            try:
+                temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
+                with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                full_path = temp_decompressed
+            except Exception as e:
+                print(f"⚠️ Failed to decompress {fname}: {e}")
+                return []
 
-                if isinstance(fastlog_cmd, list):
-                    input_path = translate_path_for_wsl(full_path)
-                    cmd = fastlog_cmd + ["-v", input_path]
-                else:
-                    cmd = [fastlog_cmd, "-v", full_path]
+        if isinstance(fastlog_cmd, list):
+            input_path = translate_path_for_wsl(full_path)
+            cmd = fastlog_cmd + ["-v", input_path]
+        else:
+            cmd = [fastlog_cmd, "-v", full_path]
 
-                try:
-                    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
-                    lines = result.stdout.splitlines()
-                    buffer = []
-                    timestamp = None
-                    for line in lines:
-                        if re.match(r"\(\d{2} \w{3} \d{2} \d{2}:\d{2}:\d{2}\.\d+", line):
-                            if buffer and timestamp:
-                                entries.append({
-                                    "timestamp": timestamp,
-                                    "process": process_name,
-                                    "message": "\n".join(buffer),
-                                    "source": "fastlog"
-                                })
-                            buffer = [line.strip()]
-                            match = re.match(r"\((?P<ts>\d{2} \w{3} \d{2} \d{2}:\d{2}:\d{2}\.\d+)", line)
-                            try:
-                                raw_ts = match.group("ts")
-                                truncated_ts = re.sub(r'\.(\d{6})\d+', r'.\1', raw_ts)
-                                dt = datetime.strptime(truncated_ts, "%d %b %y %H:%M:%S.%f")
-                                timestamp = dt.astimezone(timezone.utc).isoformat()
-                            except Exception as e:
-                                print(f"⚠️ Failed to parse fastlog timestamp in {fname}: {line.strip()} - {e}")
-                                timestamp = None
-                                buffer = []
-                        else:
-                            if buffer is not None:
-                                buffer.append(line.strip())
+        local_entries = []
+        try:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
+            lines = result.stdout.splitlines()
+            buffer = []
+            timestamp = None
+            for line in lines:
+                if re.match(r"\(\d{2} \w{3} \d{2} \d{2}:\d{2}:\d{2}\.\d+", line):
                     if buffer and timestamp:
-                        entries.append({
+                        local_entries.append({
                             "timestamp": timestamp,
                             "process": process_name,
                             "message": "\n".join(buffer),
                             "source": "fastlog"
                         })
-                except Exception as e:
-                    traceback.print_exc()
-                    print(f"⚠️ Failed to extract fastlog entries from {fname}: {e}")
-                finally:
-                    if temp_decompressed and os.path.exists(temp_decompressed):
-                        os.remove(temp_decompressed)
+                    buffer = [line.strip()]
+                    match = re.match(r"\((?P<ts>\d{2} \w{3} \d{2} \d{2}:\d{2}:\d{2}\.\d+)", line)
+                    try:
+                        raw_ts = match.group("ts")
+                        truncated_ts = re.sub(r'\.(\d{6})\d+', r'.\1', raw_ts)
+                        dt = datetime.strptime(truncated_ts, "%d %b %y %H:%M:%S.%f")
+                        timestamp = dt.astimezone(timezone.utc).isoformat()
+                    except Exception as e:
+                        print(f"⚠️ Failed to parse fastlog timestamp in {fname}: {line.strip()} - {e}")
+                        timestamp = None
+                        buffer = []
+                else:
+                    if buffer is not None:
+                        buffer.append(line.strip())
+            if buffer and timestamp:
+                local_entries.append({
+                    "timestamp": timestamp,
+                    "process": process_name,
+                    "message": "\n".join(buffer),
+                    "source": "fastlog"
+                })
+        except Exception as e:
+            traceback.print_exc()
+            print(f"⚠️ Failed to extract fastlog entries from {fname}: {e}")
+        finally:
+            if temp_decompressed and os.path.exists(temp_decompressed):
+                os.remove(temp_decompressed)
+
+        return local_entries
+
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for root, _, files in os.walk(bundle_dir):
+            for fname in files:
+                if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
+                    futures.append(executor.submit(process_file, fname, root))
+        for future in as_completed(futures):
+            entries.extend(future.result())
 
     return entries
 
@@ -374,8 +421,10 @@ def collect_showtech_and_diag(bundle_dir):
     showtech = None
     diag = {}
     isp = None
-    for root, _, files in os.walk(bundle_dir):
-        for file in files:
+
+    def handle_file(file, root):
+        nonlocal showtech, diag, isp
+        try:
             if file == "showtech.txt":
                 showtech = os.path.join(root, file)
             elif file == "isp.txt":
@@ -383,7 +432,21 @@ def collect_showtech_and_diag(bundle_dir):
             elif file == "diagdump.txt" and "feature" in root:
                 rel_dir = os.path.relpath(root, bundle_dir)
                 diag[rel_dir] = os.path.join(root, file)
+        except Exception as e:
+            print(f"⚠️ Error processing file in showtech/diag pass: {e}")
+
+    threads = []
+    for root, _, files in os.walk(bundle_dir):
+        for file in files:
+            t = threading.Thread(target=handle_file, args=(file, root))
+            threads.append(t)
+            t.start()
+
+    for t in threads:
+        t.join()
+
     return showtech, diag, isp
+
 
 def split_showtech(showtech_path, output_dir):
     sections = {}
@@ -413,6 +476,7 @@ def split_showtech(showtech_path, output_dir):
     flush()
     return sections
 
+
 def save_text_file_summary(input_path, out_path):
     try:
         with open(input_path, 'r', errors='ignore') as f:
@@ -421,23 +485,46 @@ def save_text_file_summary(input_path, out_path):
             out.write(content)
     except Exception as e:
         print(f" Failed to process {input_path}: {e}")
-
 def parse_bundle(bundle_path, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     bundle_dir = extract_bundle(bundle_path)
     if not bundle_dir:
         return None
 
-    logs = collect_event_logs(bundle_dir)
-    logs.extend(collect_fastlog_entries(bundle_dir))
+    logs = []
+    fastlog_entries = []
+    fastlog_files = []
+
+    # Run log collection phases in parallel
+    def collect_logs():
+        nonlocal logs
+        logs = collect_event_logs(bundle_dir)
+
+    def collect_fastlog():
+        nonlocal fastlog_entries
+        fastlog_entries = collect_fastlog_entries(bundle_dir)
+
+    def collect_fastlog_files():
+        nonlocal fastlog_files
+        fastlog_files = collect_fastlogs(bundle_dir, output_dir)
+
+    threads = []
+    for fn in [collect_logs, collect_fastlog, collect_fastlog_files]:
+        t = threading.Thread(target=fn)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+
+    logs.extend(fastlog_entries)
     logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
 
-    fastlog_files = collect_fastlogs(bundle_dir, output_dir)
     with open(os.path.join(output_dir, "parsed_logs.json"), "w") as f:
         json.dump(logs, f, indent=2)
     with open(os.path.join(output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
 
+    # Collect showtech and diag
     showtech_path, diag_dumps, isp_file = collect_showtech_and_diag(bundle_dir)
     if isp_file:
         shutil.copy(isp_file, os.path.join(output_dir, "isp.txt"))
@@ -455,24 +542,27 @@ def parse_bundle(bundle_path, output_dir):
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
 
-    # Check for VSF member bundles
+    # Parse VSF members in parallel
     members_dir = os.path.join(output_dir, "members")
     os.makedirs(members_dir, exist_ok=True)
+
+    vsf_threads = []
     for root, _, files in os.walk(bundle_dir):
         for file in files:
             if re.match(r"mem_\d+_support_files\.tar\.gz", file):
                 member_tar = os.path.join(root, file)
                 member_name = file.replace("_support_files.tar.gz", "")
                 member_output = os.path.join(members_dir, member_name)
-                try:
-                    parse_vsf_member(member_tar, member_output)
-                except Exception as e:
-                    print(f"⚠️ Failed to parse VSF member {file}: {e}")
-    
-    
-     # Handle previous boot logs in main bundle
+                t = threading.Thread(target=parse_vsf_member, args=(member_tar, member_output))
+                vsf_threads.append(t)
+                t.start()
+    for t in vsf_threads:
+        t.join()
+
+    # Parse previous boots
     parse_previous_boot_logs(bundle_dir, output_dir)
-    
+
+    # Add README if found
     readme_path = find_readme()
     if readme_path:
         try:
@@ -485,12 +575,11 @@ def parse_bundle(bundle_path, output_dir):
 
     try:
         shutil.rmtree(bundle_dir)
-        print(f" Cleaned up temporary directory: {bundle_dir}")
+        print(f"🧹 Cleaned up temporary directory: {bundle_dir}")
     except Exception as e:
-        print(f" Failed to clean temporary directory {bundle_dir}: {e}")
+        print(f"⚠️ Failed to clean temporary directory {bundle_dir}: {e}")
 
     return output_dir
-
 
 
 
