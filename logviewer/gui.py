@@ -5,6 +5,7 @@ except ImportError:
     exit(1)
 
 import psutil
+import time
 import multiprocessing
 import os
 import threading
@@ -290,7 +291,25 @@ class LogViewerApp:
             json.dump(config, f, indent=2)
 
         port = get_next_available_port(self.state)
-        proc = subprocess.Popen(["streamlit", "run", "app.py", "--server.port", str(port)])
+        proc = subprocess.Popen(
+            ["streamlit", "run", "app.py", "--server.port", str(port)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        )
+        
+        # Delay to give Streamlit time to start
+        time.sleep(2)
+
+        # Check if it exited early
+        if proc.poll() is not None:
+            out, err = proc.communicate()
+            self.status.config(text="❌ Streamlit failed to launch", fg="red")
+            print("Streamlit failed output:")
+            print(out.decode(errors="ignore"))
+            print(err.decode(errors="ignore"))
+            return
+    
         self.running_servers["streamlit"] = (proc, port)
         self.status.config(text=f"Viewer running on http://localhost:{port}", fg="green")
         self.viewing_in_progress = True
