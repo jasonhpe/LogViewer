@@ -3,8 +3,8 @@ try:
 except ImportError:
     print("\u274c Tkinter is not installed. Please install it manually for GUI support. Use 'sudo apt install python3-tk'")
     exit(1)
-
-import builtins
+    
+import queue
 import psutil
 import time
 import multiprocessing
@@ -33,23 +33,22 @@ class LogViewerApp:
         self.viewing_in_progress = False
 
         self.create_widgets()
-        original_print = builtins.print
-        def gui_print(*args, **kwargs):
-            message = " ".join(str(arg) for arg in args)
-            if hasattr(self, "log_debug"):
-                self.log_debug(message)
-            original_print(*args, **kwargs)
-
-        builtins.print = gui_print
+        self.debug_queue = queue.Queue()
+        self.root.after(500, self.update_debug_log)
         self.load_previous_bundles()
 
     def log_debug(self, message):
-        self.debug_output.config(state="normal")
-        self.debug_output.insert(tk.END, f"{message}\n")
-        self.debug_output.see(tk.END)
-        self.debug_output.config(state="disabled")
+        self.debug_queue.put(message)
 
-    
+    def update_debug_log(self):
+        while not self.debug_queue.empty():
+            msg = self.debug_queue.get_nowait()
+            self.debug_output.config(state="normal")
+            self.debug_output.insert("end", f"{msg}\n")
+            self.debug_output.see("end")
+        self.debug_output.config(state="disabled")
+        
+    self.root.after(500, self.update_debug_log)
     def update_cpu_usage(self):
         usage = psutil.cpu_percent(interval=1)
         self.cpu_usage_label.config(text=f"CPU Usage: {usage}%")
@@ -68,7 +67,7 @@ class LogViewerApp:
         tk.Button(frame, text="Scan Directory", command=self.scan_directory, bg="#007acc", fg="white").grid(row=0, column=1, padx=5)
         tk.Button(frame, text="Clear", command=self.clear_entries, bg="#ffc107", fg="black").grid(row=0, column=2, padx=5)
 
-        self.debug_output = tk.Text(self.root, height=10, state="disabled", bg="#f4f4f4", fg="black", wrap="word")
+        self.debug_output = tk.Text(self.root, height=10, state="disabled", bg="#f8f8f8", fg="black", wrap="word")
         self.debug_output.pack(fill="both", expand=False, padx=10, pady=(5, 10))
 
         
@@ -142,7 +141,10 @@ class LogViewerApp:
                     self.add_bundle(str(path))
                     count += 1
                 self.scan_status.config(text=f"Files scanned: {count}")
+                self.log_debug(f"📦 Found {count} .tar.gz files.")
+        
         threading.Thread(target=background_scan, daemon=True).start()
+        
 
     def clear_entries(self):
         selected = self.tree.selection()
@@ -151,16 +153,21 @@ class LogViewerApp:
         if not selected:
             confirm = messagebox.askyesno("Clear Pending/Error", "Clear all unprocessed (Pending/Error) entries?")
             if not confirm:
+                self.log_debug("❌ Clear canceled by user.")
                 return
+            self.log_debug("🧹 Clearing all unprocessed (Pending/Error) entries...")
             for item in self.tree.get_children():
-                status = self.tree.item(item, "values")[1]
+                path, status = self.tree.item(item, "values")
                 if status in ("Pending", "Error"):
                     to_remove.append(item)
+                    self.log_debug(f"🗑️ Removing: {path} [{status}]")
         else:
+            self.log_debug(f"🧹 Clearing selected {len(selected)} item(s)...")
             for item in selected:
                 path, status = self.tree.item(item, "values")
                 if status in ("Pending", "Error"):
                     to_remove.append(item)
+                    self.log_debug(f"🗑️ Removing: {path} [{status}]")
                 elif status == "Analyzed":
                     confirm = messagebox.askyesno("Delete Parsed?", f"Delete parsed result and remove '{path}'?")
                     if confirm:
@@ -169,15 +176,19 @@ class LogViewerApp:
                             output_path = parsed["output_path"]
                             if os.path.exists(output_path):
                                 shutil.rmtree(output_path, ignore_errors=True)
-                            
+                                self.log_debug(f"🧨 Deleted parsed output: {output_path}")
                         remove_parsed_bundle(path, None)
+                        self.log_debug(f"🗑️ Removed parsed entry: {path}")
                         to_remove.append(item)
+                    else:
+                        self.log_debug(f"🚫 Skipped deletion of: {path}")
 
         for item in to_remove:
             self.tree.delete(item)
 
-        
         self.status.config(text="Updated entries after clear operation.", fg="orange")
+        self.log_debug("✅ Clear operation completed.")
+        
     
 
     def add_bundle(self, filepath):
@@ -228,6 +239,7 @@ class LogViewerApp:
         self.show_progress()
 
         def background_parse():
+            self.log_debug(f"🛠️ Starting analysis with {self.worker_var.get()} workers.")
             from logviewer.parser import parse_multiple_bundles
             results = parse_multiple_bundles(
                 filepaths,
@@ -240,18 +252,20 @@ class LogViewerApp:
                 }
             )
 
-            
+            self.log_debug(f"✅ Parsing completed for {len(results)} bundles.")
 
             for result in results:
                 for item in self.tree.get_children():
                     path = self.tree.item(item, "values")[0]
                     if path == result["path"]:
                         if result["status"] == "Success":
+                            
                             add_parsed_bundle(result["path"], result["output"])
                             self.tree.set(item, column="status", value="Analyzed")
+                            self.log_debug(f"✅ Parsed {result['path']} → {result['output']}")
                         else:
                             self.tree.set(item, column="status", value="Error")
-                            print(f"❌ Failed to parse {result['path']}: {result.get('error')}")
+                            self.log_debug(f"❌ Failed to parse {result['path']}: {result.get('error')}")
 
             
             self.status.config(text="Done analyzing selected bundles.", fg="green")
@@ -342,9 +356,10 @@ class LogViewerApp:
         if proc.poll() is not None:
             out, err = proc.communicate()
             self.status.config(text="❌ Viewer failed to launch", fg="red")
-            print("Streamlit failed output:")
-            print(out.decode(errors="ignore"))
-            print(err.decode(errors="ignore"))
+            self.log_debug("Streamlit failed output:")
+            self.log_debug(out.decode(errors="ignore"))
+            self.log_debug(err.decode(errors="ignore"))
+            self.log_debug("❌ Viewer process exited early.")
             return
     
         self.running_servers["streamlit"] = (proc, port)
@@ -360,11 +375,14 @@ class LogViewerApp:
     def stop_viewer(self):
         if not self.running_servers:
             self.status.config(text="No viewer is currently running", fg="orange")
+            self.log_debug(f"No viewer is currently running")
+            
             return
 
         for key, (proc, port) in self.running_servers.items():
             proc.terminate()
             self.status.config(text=f"Stopped viewer on port {port}", fg="gray")
+            self.log_debug(f"🛑 Terminating viewer on port {port}")
 
         self.running_servers.clear()
         self.viewing_in_progress = False
