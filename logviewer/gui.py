@@ -106,13 +106,15 @@ class LogViewerApp:
             self.add_bundle(file)
 
     def scan_directory(self):
-        folder = filedialog.askdirectory()
-        count = 0
-        if folder:
-            for path in Path(folder).rglob("*.tar.gz"):
-                self.add_bundle(str(path))
-                count += 1
-            self.scan_status.config(text=f"Files scanned: {count}")
+        def background_scan():
+            folder = filedialog.askdirectory()
+            count = 0
+            if folder:
+                for path in Path(folder).rglob("*.tar.gz"):
+                    self.add_bundle(str(path))
+                    count += 1
+                self.scan_status.config(text=f"Files scanned: {count}")
+        threading.Thread(target=background_scan, daemon=True).start()
 
     def clear_entries(self):
         selected = self.tree.selection()
