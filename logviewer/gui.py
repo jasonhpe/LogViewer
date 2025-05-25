@@ -17,9 +17,8 @@ import shutil
 import json
 from logviewer.parser import find_readme, parse_bundle
 from logviewer.state import (
-    load_state, save_state,
-    add_parsed_bundle, get_parsed_bundles,
-    get_next_available_port
+    add_parsed_bundle, remove_parsed_bundle,
+    get_parsed_bundles, get_next_available_port
 )
 
 class LogViewerApp:
@@ -28,7 +27,7 @@ class LogViewerApp:
         self.root.title("LogViewer GUI")
         self.root.geometry("900x550")
 
-        self.state = load_state()
+        
         self.running_servers = {}
         self.viewing_in_progress = False
 
@@ -147,19 +146,19 @@ class LogViewerApp:
                 elif status == "Analyzed":
                     confirm = messagebox.askyesno("Delete Parsed?", f"Delete parsed result and remove '{path}'?")
                     if confirm:
-                        parsed = get_parsed_bundles(self.state).get(path)
+                        parsed = get_parsed_bundles().get(path)
                         if parsed:
                             output_path = parsed["output_path"]
                             if os.path.exists(output_path):
                                 shutil.rmtree(output_path, ignore_errors=True)
-                            shutil.rmtree(parsed["output_path"], ignore_errors=True)
-                        self.state["parsed_bundles"].pop(path, None)
+                            
+                        remove_parsed_bundle(path, None)
                         to_remove.append(item)
 
         for item in to_remove:
             self.tree.delete(item)
 
-        save_state(self.state)
+        
         self.status.config(text="Updated entries after clear operation.", fg="orange")
     
 
@@ -167,35 +166,33 @@ class LogViewerApp:
         for row in self.tree.get_children():
             if self.tree.item(row, "values")[0] == filepath:
                 return
-        analyzed = filepath in get_parsed_bundles(self.state)
+        analyzed = filepath in get_parsed_bundles()
         self.tree.insert("", "end", values=(filepath, "Analyzed" if analyzed else "Pending"))
 
     def load_previous_bundles(self):
-        # Load from existing saved state
-        parsed = get_parsed_bundles(self.state)
-
-        # Track which paths are already listed in state
+        parsed = get_parsed_bundles()
         known_paths = set(parsed.keys())
 
-        # Add those that still exist
+        existing_tree_paths = {
+            self.tree.item(item, "values")[0]
+            for item in self.tree.get_children()
+        }
+
         for bundle_path, meta in parsed.items():
-            if os.path.exists(bundle_path):
+            if os.path.exists(bundle_path) and bundle_path not in existing_tree_paths:
                 self.tree.insert("", "end", values=(bundle_path, "Analyzed"))
 
-        # Fallback: scan current folder for _log_analysis_results dirs
         for child in Path(".").iterdir():
             if child.is_dir() and child.name.endswith("_log_analysis_results"):
                 parsed_log = child / "parsed_logs.json"
                 if parsed_log.exists():
-                    # Check if already tracked in state
-                    if str(child) not in known_paths:
-                        self.tree.insert("", "end", values=(str(child), "Analyzed"))
-                        self.state["parsed_bundles"][str(child)] = {
-                            "output_path": str(child.resolve())
-                        }
+                    bundle_path = str(child)
+                    if bundle_path not in known_paths and bundle_path not in existing_tree_paths:
+                        self.tree.insert("", "end", values=(bundle_path, "Analyzed"))
+                        add_parsed_bundle(bundle_path, str(child.resolve()))
+                        
 
-        # Save updated state if we added anything
-        save_state(self.state)
+       
 
     def analyze_selected(self):
         selected_items = self.tree.selection()
@@ -232,13 +229,13 @@ class LogViewerApp:
                     path = self.tree.item(item, "values")[0]
                     if path == result["path"]:
                         if result["status"] == "Success":
-                            add_parsed_bundle(self.state, result["path"], result["output"])
+                            add_parsed_bundle(result["path"], result["output"])
                             self.tree.set(item, column="status", value="Analyzed")
                         else:
                             self.tree.set(item, column="status", value="Error")
                             print(f"❌ Failed to parse {result['path']}: {result.get('error')}")
 
-            save_state(self.state)
+            
             self.status.config(text="Done analyzing selected bundles.", fg="green")
             self.hide_progress()
 
@@ -251,7 +248,7 @@ class LogViewerApp:
             output_dir = f"{Path(filepath).stem}_log_analysis_results"
             if not os.path.exists(os.path.join(output_dir, "parsed_logs.json")):
                 parse_bundle(filepath, output_dir)
-            add_parsed_bundle(self.state, filepath, output_dir)
+            add_parsed_bundle(filepath, output_dir)
             self.tree.set(tree_id, column="status", value="Analyzed")
             self.status.config(text=f"Done analyzing: {filepath}")
         except Exception as e:
@@ -268,7 +265,7 @@ class LogViewerApp:
             self.status.config(text="Viewer already running", fg="orange")
             return
 
-        parsed_bundles = get_parsed_bundles(self.state)
+        parsed_bundles = get_parsed_bundles()
         entries = []
 
         for item in selected:
@@ -293,12 +290,10 @@ class LogViewerApp:
                             "path": str(child.resolve())
                         })
                         # Optionally repopulate state
-                        self.state["parsed_bundles"][str(child)] = {
-                            "output_path": str(child.resolve())
-                        }
+                       add_parsed_bundle(str(child), str(child.resolve()))
 
             if recovered:
-                save_state(self.state)
+                
                 entries = recovered
                 self.status.config(text=f"Recovered {len(entries)} parsed bundles", fg="blue")
             else:
@@ -314,7 +309,7 @@ class LogViewerApp:
         with open("config.json", "w") as f:
             json.dump(config, f, indent=2)
 
-        port = get_next_available_port(self.state)
+        port = get_next_available_port()
         proc = subprocess.Popen(
             ["streamlit", "run", "app.py", "--server.port", str(port)],
             stdout=subprocess.PIPE,
@@ -367,7 +362,7 @@ class LogViewerApp:
     def on_close(self):
         for proc, _ in self.running_servers.values():
             proc.terminate()
-        save_state(self.state)
+       
         self.root.destroy()
 
 
