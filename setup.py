@@ -45,6 +45,7 @@ setup(
         'jinja2',
         'streamlit',
         'pandas',
+        'psutil',
     ],
     entry_points={
         'console_scripts': [
