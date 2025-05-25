@@ -149,6 +149,8 @@ class LogViewerApp:
                     if confirm:
                         parsed = get_parsed_bundles(self.state).get(path)
                         if parsed:
+                            if os.path.exists(bundle_dir):
+                                shutil.rmtree(bundle_dir)
                             shutil.rmtree(parsed["output_path"], ignore_errors=True)
                         self.state["parsed_bundles"].pop(path, None)
                         to_remove.append(item)
