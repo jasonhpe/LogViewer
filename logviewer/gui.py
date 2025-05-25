@@ -3,7 +3,8 @@ try:
 except ImportError:
     print("\u274c Tkinter is not installed. Please install it manually for GUI support. Use 'sudo apt install python3-tk'")
     exit(1)
-    
+
+import psutil
 import multiprocessing
 import os
 import threading
@@ -33,8 +34,15 @@ class LogViewerApp:
         self.create_widgets()
         self.load_previous_bundles()
 
+    
+    def update_cpu_usage(self):
+    usage = psutil.cpu_percent(interval=1)
+    self.cpu_usage_label.config(text=f"CPU Usage: {usage}%")
+    self.root.after(1000, self.update_cpu_usage)
+    
+    
     def create_widgets(self):
-        tk.Label(self.root, text="LogViewer - Aruba Log Analysis GUI", font=("Helvetica", 18, "bold"), pady=10).pack()
+        
         
         
         tk.Label(self.root, text="Upload or scan a directory for .tar.gz support bundles.", font=("Helvetica", 10), fg="gray").pack()
@@ -51,7 +59,10 @@ class LogViewerApp:
         worker_frame.pack(pady=(0, 5))
         tk.Label(worker_frame, text="Max Parallel Parses:").pack(side="left", padx=5)
         tk.Spinbox(worker_frame, from_=1, to=multiprocessing.cpu_count(), textvariable=self.worker_var, width=5, state="readonly").pack(side="left")
-
+        tk.Label(self.root, text="LogViewer - Aruba Log Analysis GUI", font=("Helvetica", 18, "bold"), pady=10).pack()
+        self.cpu_usage_label = tk.Label(self.root, text="CPU Usage: 0%", fg="gray")
+        self.cpu_usage_label.pack()
+        self.update_cpu_usage()
         
         self.scan_status = tk.Label(self.root, text="Files scanned: 0", anchor="w")
         self.scan_status.pack()
