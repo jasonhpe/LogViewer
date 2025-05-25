@@ -11,6 +11,7 @@ import tempfile
 import importlib.util
 import logviewer
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 def find_readme():
     try:
