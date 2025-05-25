@@ -194,9 +194,12 @@ class LogViewerApp:
     def add_bundle(self, filepath):
         for row in self.tree.get_children():
             if self.tree.item(row, "values")[0] == filepath:
+                self.log_debug(f"⚠️ Skipped duplicate bundle: {filepath}")
                 return
         analyzed = filepath in get_parsed_bundles()
-        self.tree.insert("", "end", values=(filepath, "Analyzed" if analyzed else "Pending"))
+        status = "Analyzed" if analyzed else "Pending"
+        self.tree.insert("", "end", values=(filepath, status))
+        self.log_debug(f"📥 Added bundle: {filepath} [{status}]")
 
     def load_previous_bundles(self):
         parsed = get_parsed_bundles()
