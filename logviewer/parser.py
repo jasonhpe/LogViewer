@@ -222,14 +222,28 @@ def read_lines(path):
             rest_fixed = rest.replace("\\", "/")
             wsl_path = f"/mnt/{drive[0].lower()}{rest_fixed}"
             journal_cmd = ["wsl", "journalctl", "-D", wsl_path, "--no-pager"]
+
+            try:
+                result = subprocess.run(
+                    journal_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW  # 👈 suppress WSL console popups
+                )
+                return result.stdout.splitlines()
+            except Exception as e:
+                print(f"⚠️ Failed to read journal logs: {e}")
+                return []
         else:
+            # Native Linux journal
             journal_cmd = ["journalctl", "-D", path, "--no-pager"]
-        try:
-            result = subprocess.run(journal_cmd, stdout=subprocess.PIPE, text=True)
-            return result.stdout.splitlines()
-        except Exception as e:
-            print(f"⚠️ Failed to read journal logs from {path}: {e}")
-            return []
+            try:
+                result = subprocess.run(journal_cmd, stdout=subprocess.PIPE, text=True)
+                return result.stdout.splitlines()
+            except Exception as e:
+                print(f"⚠️ Failed to read journal logs: {e}")
+                return []
     else:
         try:
             with open(path, "r", errors='ignore') as f:
@@ -237,6 +251,7 @@ def read_lines(path):
         except Exception as e:
             print(f"⚠️ Failed to read file {path}: {e}")
             return []
+		
 def parse_line(line):
     patterns = [
         re.compile(r'(?P<timestamp>\d{4}-\d{2}-\d{2}T[\d:.+\-]+)\s+(?P<hostname>\S+)\s+(?P<process>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+Event\|(?P<event_id>\d+)\|(?P<severity>\S+)\|(?P<module>\S+)\|(?P<slot>[^|]*)\|(?P<message>.+)'),
