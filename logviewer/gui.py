@@ -290,7 +290,7 @@ class LogViewerApp:
                             "path": str(child.resolve())
                         })
                         # Optionally repopulate state
-                       add_parsed_bundle(str(child), str(child.resolve()))
+                        add_parsed_bundle(str(child), str(child.resolve()))
 
             if recovered:
                 
