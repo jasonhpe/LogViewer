@@ -3,6 +3,7 @@ try:
 except ImportError:
     print("\u274c Tkinter is not installed. Please install it manually for GUI support. Use 'sudo apt install python3-tk'")
     exit(1)
+    
 
 import os
 import threading
@@ -34,6 +35,8 @@ class LogViewerApp:
 
     def create_widgets(self):
         tk.Label(self.root, text="LogViewer - Aruba Log Analysis GUI", font=("Helvetica", 18, "bold"), pady=10).pack()
+        
+        
         tk.Label(self.root, text="Upload or scan a directory for .tar.gz support bundles.", font=("Helvetica", 10), fg="gray").pack()
 
         frame = tk.Frame(self.root, pady=10)
@@ -42,6 +45,13 @@ class LogViewerApp:
         tk.Button(frame, text="Scan Directory", command=self.scan_directory, bg="#007acc", fg="white").grid(row=0, column=1, padx=5)
         tk.Button(frame, text="Clear", command=self.clear_entries, bg="#ffc107", fg="black").grid(row=0, column=2, padx=5)
 
+        import multiprocessing
+        self.worker_var = tk.IntVar(value=max(1, multiprocessing.cpu_count() - 1))
+        worker_frame = tk.Frame(self.root)
+        worker_frame.pack(pady=(0, 5))
+        tk.Label(worker_frame, text="Max Parallel Parses:").pack(side="left", padx=5)
+        tk.Spinbox(worker_frame, from_=1, to=multiprocessing.cpu_count(), textvariable=self.worker_var, width=5).pack(side="left")
+        
         self.scan_status = tk.Label(self.root, text="Files scanned: 0", anchor="w")
         self.scan_status.pack()
 
