@@ -202,12 +202,29 @@ def collect_event_logs(bundle_dir):
     logs = []
     for root, _, files in os.walk(bundle_dir):
         for file in files:
+            full_path = os.path.join(root, file)
+
+            # Handle compressed .gz log files
+            if file.endswith(".gz"):
+                try:
+                    with gzip.open(full_path, "rt", errors='ignore') as f:
+                        for line in f:
+                            entry = parse_line(line)
+                            if entry:
+                                entry["source"] = "eventlog"
+                                logs.append(entry)
+                except Exception as e:
+                    print(f"⚠️ Failed to parse compressed log {file}: {e}")
+                continue
+
+            # Handle normal .log and journal files
             if file.endswith(".log") or "journal" in file:
-                for line in read_lines(os.path.join(root, file)):
+                for line in read_lines(full_path):
                     entry = parse_line(line)
                     if entry:
                         entry["source"] = "eventlog"
                         logs.append(entry)
+
     return logs
 
 def translate_path_for_wsl(path):
