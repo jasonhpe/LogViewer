@@ -48,9 +48,29 @@ def find_readme():
 
 def parse_linecard_bundle(tar_path, linecard_output_dir):
     print(f"📦 Parsing Linecard bundle: {tar_path}")
-    extracted = extract_bundle(tar_path, target_dir=linecard_output_dir + "_tmp")
+    
+    # Step 1: Extract lcX.tar.gz
+    first_extract_dir = extract_bundle(tar_path, target_dir=linecard_output_dir + "_tmp1")
+    if not first_extract_dir:
+        print(f"⚠️ Could not extract outer bundle: {tar_path}")
+        return
+
+    # Step 2: Find and extract LC_X_support_files.tar.gz
+    nested_tar = None
+    for file in os.listdir(first_extract_dir):
+        if file.endswith("_support_files.tar.gz") and file.startswith("LC_"):
+            nested_tar = os.path.join(first_extract_dir, file)
+            break
+
+    if not nested_tar or not os.path.exists(nested_tar):
+        print(f"⚠️ Nested LC_X_support_files.tar.gz not found in {first_extract_dir}")
+        shutil.rmtree(first_extract_dir, ignore_errors=True)
+        return
+
+    extracted = extract_bundle(nested_tar, target_dir=linecard_output_dir + "_tmp2")
     if not extracted:
-        print(f"⚠️ Could not extract {tar_path}")
+        print(f"⚠️ Could not extract nested linecard bundle: {nested_tar}")
+        shutil.rmtree(first_extract_dir, ignore_errors=True)
         return
 
     logs = []
@@ -86,13 +106,26 @@ def parse_linecard_bundle(tar_path, linecard_output_dir):
     with open(os.path.join(linecard_output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
 
-    # Optional: parse previous boots if they exist
+    # Copy diag_dump_*.txt to feature folder
+    diag_dir = os.path.join(linecard_output_dir, "feature")
+    os.makedirs(diag_dir, exist_ok=True)
+    for root, _, files in os.walk(extracted):
+        for file in files:
+            if file.startswith("diag_dump_") and file.endswith(".txt"):
+                try:
+                    shutil.copy(os.path.join(root, file), os.path.join(diag_dir, file))
+                except Exception as e:
+                    print(f"⚠️ Failed to copy {file}: {e}")
+
+    # Handle previous boot logs if any
     parse_previous_boot_logs(extracted, linecard_output_dir)
 
-    try:
-        shutil.rmtree(extracted)
-    except Exception as e:
-        print(f"⚠️ Failed to clean temp LC dir {extracted}: {e}")
+    # Cleanup both levels of extraction
+    for temp_dir in [first_extract_dir, extracted]:
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception as e:
+            print(f"⚠️ Failed to clean temp dir {temp_dir}: {e}")
 	    
 def parse_flat_boot_logs(member_extracted_dir, member_output_dir):
     def handle_boot_folder(entry):
