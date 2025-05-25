@@ -261,7 +261,9 @@ if MODE == "single":
     else:
         path = os.path.join(target_path, "previous", boot_context)
 
-    show_showtech = vsf_member == "Main Bundle"
+    if "linecard" not in locals() or linecard == "None":
+        show_showtech = vsf_member == "Main Bundle"
+    
     st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}` - 🧩 Member: `{vsf_member}`")
 
     df = load_parsed_logs(path)
@@ -334,7 +336,8 @@ elif MODE == "carousel":
     else:
         path = os.path.join(target_path, "previous", boot_context)
 
-    show_showtech = vsf_member == "Main Bundle"
+    if "linecard" not in locals() or linecard == "None":
+        show_showtech = vsf_member == "Main Bundle"
     st.markdown(f"### 📦 Bundle: `{selected_bundle['name']}` - 🔄 Boot: `{boot_context}` - 🧩 Member: `{vsf_member}`")
 
     df = load_parsed_logs(path)
