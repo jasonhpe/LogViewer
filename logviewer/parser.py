@@ -2,6 +2,7 @@ import platform
 import os
 import re
 import tarfile
+import uuid
 import subprocess
 import json
 import shutil
@@ -55,21 +56,27 @@ def parse_flat_boot_logs(member_extracted_dir, member_output_dir):
 
         logs = []
         fastlog_entries = []
+        fastlog_files = []
 
         def get_logs():
             nonlocal logs
             logs = collect_event_logs(boot_path)
 
-        def get_fastlogs():
+        def get_fastlog_entries():
             nonlocal fastlog_entries
             fastlog_entries = collect_fastlog_entries(boot_path)
 
-        t1 = threading.Thread(target=get_logs)
-        t2 = threading.Thread(target=get_fastlogs)
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+        def get_fastlog_files():
+            nonlocal fastlog_files
+            fastlog_files = collect_fastlogs(boot_path, out_path)
+
+        threads = []
+        for fn in [get_logs, get_fastlog_entries, get_fastlog_files]:
+            t = threading.Thread(target=fn)
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
 
         logs.extend(fastlog_entries)
         logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
@@ -79,8 +86,8 @@ def parse_flat_boot_logs(member_extracted_dir, member_output_dir):
 
         with open(os.path.join(out_path, "parsed_logs.json"), "w") as f:
             json.dump(logs, f, indent=2)
-
-        collect_fastlogs(boot_path, out_path)
+        with open(os.path.join(out_path, "fastlog_index.json"), "w") as f:
+            json.dump(fastlog_files, f, indent=2)
 
     threads = []
     for entry in os.listdir(member_extracted_dir):
@@ -155,7 +162,7 @@ def parse_vsf_member(tar_path, member_output_dir):
         nonlocal logs
         logs = collect_event_logs(extracted)
 
-    def get_fastlogs():
+    def get_fastlog_entries():
         nonlocal fastlog_entries
         fastlog_entries = collect_fastlog_entries(extracted)
 
@@ -164,7 +171,7 @@ def parse_vsf_member(tar_path, member_output_dir):
         fastlog_files = collect_fastlogs(extracted, member_output_dir)
 
     threads = []
-    for fn in [get_logs, get_fastlogs, get_fastlog_files]:
+    for fn in [get_logs, get_fastlog_entries, get_fastlog_files]:
         t = threading.Thread(target=fn)
         t.start()
         threads.append(t)
@@ -180,6 +187,7 @@ def parse_vsf_member(tar_path, member_output_dir):
     with open(os.path.join(member_output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
 
+    # Copy diagdump_*.txt to feature folder
     diag_dir = os.path.join(member_output_dir, "feature")
     os.makedirs(diag_dir, exist_ok=True)
     for root, _, files in os.walk(extracted):
@@ -326,12 +334,12 @@ def collect_fastlogs(bundle_dir, output_dir):
     os.makedirs(fastlog_output_dir, exist_ok=True)
 
     def process_file(fname, root):
-        temp_decompressed = None
         full_path = os.path.join(root, fname)
+        temp_decompressed = None
 
         if fname.endswith(".gz"):
             try:
-                temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
+                temp_decompressed = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}_{fname.replace('.gz', '')}")
                 with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
                 full_path = temp_decompressed
@@ -339,11 +347,7 @@ def collect_fastlogs(bundle_dir, output_dir):
                 print(f"⚠️ Failed to decompress {fname}: {e}")
                 return None
 
-        if isinstance(fastlog_cmd, list):
-            input_path = translate_path_for_wsl(full_path)
-            cmd = fastlog_cmd + ["-v", input_path]
-        else:
-            cmd = [fastlog_cmd, "-v", full_path]
+        cmd = [fastlog_cmd, "-v", full_path] if isinstance(fastlog_cmd, str) else fastlog_cmd + ["-v", translate_path_for_wsl(full_path)]
 
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
@@ -352,37 +356,38 @@ def collect_fastlogs(bundle_dir, output_dir):
                 f.write(result.stdout)
             return os.path.basename(out_file)
         except Exception as e:
-            traceback.print_exc()
             print(f"⚠️ Failed to parse {fname}: {e}")
             return None
         finally:
             if temp_decompressed and os.path.exists(temp_decompressed):
-                os.remove(temp_decompressed)
+                try:
+                    os.remove(temp_decompressed)
+                except Exception as e:
+                    print(f"⚠️ Could not delete temp file {temp_decompressed}: {e}")
 
     with ThreadPoolExecutor() as executor:
-        futures = []
-        for root, _, files in os.walk(bundle_dir):
-            for fname in files:
-                if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
-                    futures.append(executor.submit(process_file, fname, root))
+        futures = [executor.submit(process_file, fname, root)
+                   for root, _, files in os.walk(bundle_dir)
+                   for fname in files if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz")]
         for future in as_completed(futures):
             result = future.result()
             if result:
                 fastlog_files.append(result)
 
     return fastlog_files
+	
 def collect_fastlog_entries(bundle_dir):
     fastlog_cmd = get_fastlog_parser()
     entries = []
 
     def process_file(fname, root):
-        temp_decompressed = None
         full_path = os.path.join(root, fname)
         process_name = os.path.basename(fname).replace(".supportlog", "").replace(".gz", "")
+        temp_decompressed = None
 
         if fname.endswith(".gz"):
             try:
-                temp_decompressed = os.path.join(tempfile.gettempdir(), fname.replace(".gz", ""))
+                temp_decompressed = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}_{fname.replace('.gz', '')}")
                 with gzip.open(full_path, "rb") as f_in, open(temp_decompressed, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
                 full_path = temp_decompressed
@@ -390,11 +395,7 @@ def collect_fastlog_entries(bundle_dir):
                 print(f"⚠️ Failed to decompress {fname}: {e}")
                 return []
 
-        if isinstance(fastlog_cmd, list):
-            input_path = translate_path_for_wsl(full_path)
-            cmd = fastlog_cmd + ["-v", input_path]
-        else:
-            cmd = [fastlog_cmd, "-v", full_path]
+        cmd = [fastlog_cmd, "-v", full_path] if isinstance(fastlog_cmd, str) else fastlog_cmd + ["-v", translate_path_for_wsl(full_path)]
 
         local_entries = []
         try:
@@ -433,20 +434,20 @@ def collect_fastlog_entries(bundle_dir):
                     "source": "fastlog"
                 })
         except Exception as e:
-            traceback.print_exc()
             print(f"⚠️ Failed to extract fastlog entries from {fname}: {e}")
         finally:
             if temp_decompressed and os.path.exists(temp_decompressed):
-                os.remove(temp_decompressed)
+                try:
+                    os.remove(temp_decompressed)
+                except Exception as e:
+                    print(f"⚠️ Could not delete temp file {temp_decompressed}: {e}")
 
         return local_entries
 
     with ThreadPoolExecutor() as executor:
-        futures = []
-        for root, _, files in os.walk(bundle_dir):
-            for fname in files:
-                if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz"):
-                    futures.append(executor.submit(process_file, fname, root))
+        futures = [executor.submit(process_file, fname, root)
+                   for root, _, files in os.walk(bundle_dir)
+                   for fname in files if fname.endswith(".supportlog") or fname.endswith(".supportlog.gz")]
         for future in as_completed(futures):
             entries.extend(future.result())
 
