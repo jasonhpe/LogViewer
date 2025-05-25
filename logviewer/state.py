@@ -1,62 +1,61 @@
 # state.py
 
 import os
-import json
-import shutil
+import sqlite3
 from datetime import datetime
 
-STATE_FILE = os.path.expanduser("~/.logviewer_state.json")
+DB_PATH = os.path.expanduser("~/.logviewer_state.db")
 
-def load_state():
-    """Load persistent state from disk."""
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"⚠️ Failed to load state: {e}")
-            return {}
-    return {}
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS parsed_bundles (
+            bundle_path TEXT PRIMARY KEY,
+            output_path TEXT NOT NULL,
+            port INTEGER,
+            timestamp TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-def save_state(state):
-    """Save current state to disk with backup."""
-    try:
-        if os.path.exists(STATE_FILE):
-            shutil.copy2(STATE_FILE, STATE_FILE + ".bak")
-        with open(STATE_FILE, "w") as f:
-            json.dump(state, f, indent=2)
-    except Exception as e:
-        print(f"⚠️ Failed to save state: {e}")
+def add_parsed_bundle(bundle_path, output_path, port=None):
+    init_db()
+    timestamp = datetime.now().isoformat()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT OR REPLACE INTO parsed_bundles (bundle_path, output_path, port, timestamp)
+        VALUES (?, ?, ?, ?)
+    """, (os.path.abspath(bundle_path), output_path, port, timestamp))
+    conn.commit()
+    conn.close()
 
-def add_parsed_bundle(state, bundle_path, output_path, port=None):
-    """Add or update a parsed bundle entry."""
-    norm_path = os.path.abspath(bundle_path)
-    state.setdefault("parsed_bundles", {})
-    state["parsed_bundles"][norm_path] = {
-        "output_path": output_path,
-        "port": port,
-        "timestamp": datetime.now().isoformat()
-    }
-    save_state(state)
+def remove_parsed_bundle(bundle_path):
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM parsed_bundles WHERE bundle_path = ?", (os.path.abspath(bundle_path),))
+    conn.commit()
+    conn.close()
 
-def remove_parsed_bundle(state, bundle_path):
-    """Remove a bundle entry by file path."""
-    norm_path = os.path.abspath(bundle_path)
-    if "parsed_bundles" in state and norm_path in state["parsed_bundles"]:
-        del state["parsed_bundles"][norm_path]
-        save_state(state)
+def get_parsed_bundles():
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT bundle_path, output_path, port, timestamp FROM parsed_bundles")
+    rows = c.fetchall()
+    conn.close()
+    return {row[0]: {"output_path": row[1], "port": row[2], "timestamp": row[3]} for row in rows}
 
-def get_parsed_bundles(state):
-    """Return dictionary of all parsed bundles."""
-    return state.get("parsed_bundles", {})
-
-def get_next_available_port(state, start_port=8001):
-    """Find the next unused port."""
-    used_ports = {
-        v["port"]
-        for v in state.get("parsed_bundles", {}).values()
-        if v.get("port")
-    }
+def get_next_available_port(start_port=8001):
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT port FROM parsed_bundles WHERE port IS NOT NULL")
+    used_ports = {row[0] for row in c.fetchall()}
+    conn.close()
     port = start_port
     while port in used_ports:
         port += 1
