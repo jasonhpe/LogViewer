@@ -1,4 +1,4 @@
-try:
+    try:
     import tkinter
 except ImportError:
     print("\u274c Tkinter is not installed. Please install it manually for GUI support. Use 'sudo apt install python3-tk'")
@@ -89,6 +89,14 @@ class LogViewerApp:
 
         action_frame = tk.Frame(self.root)
         action_frame.pack(pady=5)
+        self.include_fastlogs = tk.BooleanVar(value=True)
+        self.include_vsf = tk.BooleanVar(value=True)
+        self.include_prevboot = tk.BooleanVar(value=True)
+
+        tk.Checkbutton(self.root, text="Parse Fastlogs", variable=self.include_fastlogs).pack()
+        tk.Checkbutton(self.root, text="Parse VSF Members", variable=self.include_vsf).pack()
+        tk.Checkbutton(self.root, text="Parse Previous Boot Logs", variable=self.include_prevboot).pack()
+        
         tk.Button(action_frame, text="Analyze Selected", command=self.analyze_selected, bg="#28a745", fg="white").grid(row=0, column=0, padx=10)
         tk.Button(action_frame, text="Start Viewer", command=self.start_viewer, bg="#17a2b8", fg="white").grid(row=0, column=1, padx=10)
         tk.Button(action_frame, text="Stop Viewer", command=self.stop_viewer, bg="#dc3545", fg="white").grid(row=0, column=2, padx=10)
@@ -201,7 +209,17 @@ class LogViewerApp:
 
         def background_parse():
             from logviewer.parser import parse_multiple_bundles
-            results = parse_multiple_bundles(filepaths, workers=self.worker_var.get())
+            results = parse_multiple_bundles(
+                filepaths,
+                workers=self.worker_var.get(),
+                options={
+                    "include_fastlogs": self.include_fastlogs.get(),
+                    "include_vsf": self.include_vsf.get(),
+                    "include_prevboot": self.include_prevboot.get()
+                }
+            )
+
+            
 
             for result in results:
                 for item in self.tree.get_children():
