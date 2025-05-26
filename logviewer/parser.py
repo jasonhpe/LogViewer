@@ -16,6 +16,8 @@ import gzip
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Test commit
+
 LOG_FILE_PREFIXES = ["event", "messages", "supportlog", "critical", "diagdump"]
 
 def safe_parse(path, options=None):
