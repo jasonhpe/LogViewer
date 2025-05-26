@@ -16,8 +16,6 @@ import gzip
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Test commit
-
 LOG_FILE_PREFIXES = ["event", "messages", "supportlog", "critical", "diagdump"]
 
 def safe_parse(path, options=None):
@@ -450,7 +448,7 @@ def collect_fastlogs(bundle_dir, output_dir):
 
         try:
             creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
-	    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, creationflags=creationflags)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, creationflags=creationflags)
             out_file = os.path.join(fastlog_output_dir, os.path.basename(full_path) + ".txt")
             with open(out_file, "w") as f:
                 f.write(result.stdout)
@@ -500,7 +498,7 @@ def collect_fastlog_entries(bundle_dir):
         local_entries = []
         try:
             creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
-	    result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, creationflags=creationflags)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, creationflags=creationflags)
             lines = result.stdout.splitlines()
             buffer = []
             timestamp = None
