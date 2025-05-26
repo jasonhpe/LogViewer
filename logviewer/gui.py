@@ -244,7 +244,9 @@ class LogViewerApp:
 
         def background_parse():
             self.log_debug(f"🛠️ Starting analysis with {self.worker_var.get()} workers.")
-            from logviewer.parser import parse_multiple_bundles
+            from logviewer.parser import parse_multiple_bundles, set_logger
+            set_logger(self.log_debug)
+            
             results = parse_multiple_bundles(
                 filepaths,
                 workers=self.worker_var.get(),
@@ -283,6 +285,8 @@ class LogViewerApp:
         try:
             output_dir = f"{Path(filepath).stem}_log_analysis_results"
             if not os.path.exists(os.path.join(output_dir, "parsed_logs.json")):
+                from logviewer import parser
+                parser.set_logger(self.log_debug)
                 parse_bundle(filepath, output_dir)
             add_parsed_bundle(filepath, output_dir)
             self.tree.set(tree_id, column="status", value="Analyzed")
