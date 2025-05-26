@@ -18,12 +18,17 @@ import gzip
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-log_debug = print  
+_log_debug_callback = print  # default fallback
+
 LOG_FILE_PREFIXES = ["event", "messages", "supportlog", "critical", "diagdump"]
 
+def log_debug(message):
+    _log_debug_callback(message)
+
 def set_logger(callback):
-    global log_debug
-    log_debug = callback
+    global _log_debug_callback 
+    _log_debug_callback  = callback
+    log_debug("✅ Custom logger has been set.")
 
 def safe_parse(path, options=None):
     try:
@@ -629,9 +634,13 @@ def save_text_file_summary(input_path, out_path):
         log_debug(f" Failed to process {input_path}: {e}")
 
 def parse_bundle(bundle_path, output_dir, options=None):
+    log_debug(f"📦 Starting parse_bundle for: {bundle_path}")
+    
     os.makedirs(output_dir, exist_ok=True)
     bundle_dir = extract_bundle(bundle_path)
+
     if not bundle_dir:
+        log_debug(f"❌ Failed to extract {bundle_path}")
         return None
 
     logs = []
@@ -644,20 +653,27 @@ def parse_bundle(bundle_path, output_dir, options=None):
     include_prevboot = options.get("include_prevboot", True)
     include_linecards = options.get("include_linecards", True)
 
-    # Run log collection phases in parallel
+    log_debug(f"🔧 Options → Fastlogs: {include_fastlogs}, VSF: {include_vsf}, PrevBoot: {include_prevboot}, Linecards: {include_linecards}")
+
     def collect_logs():
         nonlocal logs
+        log_debug("📑 Collecting event logs...")
         logs = collect_event_logs(bundle_dir)
+        log_debug(f"📑 Collected {len(logs)} event log entries")
 
     def collect_fastlog():
         nonlocal fastlog_entries
         if include_fastlogs:
+            log_debug("⚡ Collecting fastlog entries...")
             fastlog_entries = collect_fastlog_entries(bundle_dir)
+            log_debug(f"⚡ Collected {len(fastlog_entries)} fastlog entries")
 
     def collect_fastlog_files():
         nonlocal fastlog_files
         if include_fastlogs:
+            log_debug("🗂️ Collecting fastlog files...")
             fastlog_files = collect_fastlogs(bundle_dir, output_dir)
+            log_debug(f"🗂️ Collected {len(fastlog_files)} fastlog files")
 
     threads = []
     for fn in [collect_logs, collect_fastlog, collect_fastlog_files]:
@@ -669,6 +685,7 @@ def parse_bundle(bundle_path, output_dir, options=None):
 
     logs.extend(fastlog_entries)
     logs.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
+    log_debug(f"📊 Total parsed log entries: {len(logs)}")
 
     with open(os.path.join(output_dir, "parsed_logs.json"), "w") as f:
         json.dump(logs, f, indent=2)
@@ -676,14 +693,16 @@ def parse_bundle(bundle_path, output_dir, options=None):
     with open(os.path.join(output_dir, "fastlog_index.json"), "w") as f:
         json.dump(fastlog_files, f, indent=2)
 
-    # Collect showtech and diag
     showtech_path, diag_dumps, isp_file = collect_showtech_and_diag(bundle_dir)
     if isp_file:
         shutil.copy(isp_file, os.path.join(output_dir, "isp.txt"))
+        log_debug("📎 Copied isp.txt")
+    
     if showtech_path:
         index = split_showtech(showtech_path, output_dir)
         with open(os.path.join(output_dir, "showtech_index.json"), "w") as f:
             json.dump(index, f, indent=2)
+        log_debug("📘 Parsed and indexed showtech.txt")
 
     diag_dir = os.path.join(output_dir, "feature")
     os.makedirs(diag_dir, exist_ok=True)
@@ -691,49 +710,65 @@ def parse_bundle(bundle_path, output_dir, options=None):
         out_name = name.replace(os.sep, "_") + "_diagdump.txt"
         full_path = os.path.join(diag_dir, out_name)
         save_text_file_summary(path, full_path)
-
     with open(os.path.join(output_dir, "diag_index.json"), "w") as f:
         json.dump(list(diag_dumps.keys()), f, indent=2)
+    log_debug(f"🧠 Saved {len(diag_dumps)} diag dumps")
 
-    # Parse Linecards if enabled
     if include_linecards:
         linecard_dir = os.path.join(output_dir, "linecards")
         os.makedirs(linecard_dir, exist_ok=True)
         lc_threads = []
+        found_linecards = 0
         for root, _, files in os.walk(bundle_dir):
             for file in files:
                 if re.match(r"lc\d+\.tar\.gz", file):
+                    found_linecards += 1
                     lc_tar = os.path.join(root, file)
                     lc_name = file.replace(".tar.gz", "")
                     lc_output = os.path.join(linecard_dir, lc_name)
+                    log_debug(f"📦 Detected Linecard bundle: {file}")
                     t = threading.Thread(target=parse_linecard_bundle, args=(lc_tar, lc_output))
                     lc_threads.append(t)
                     t.start()
         for t in lc_threads:
             t.join()
+        if found_linecards:
+            log_debug(f"✅ Finished parsing {found_linecards} linecard bundle(s)")
+        else:
+            log_debug("ℹ️ No linecard bundles detected.")
 
-    # Parse VSF members if enabled
     if include_vsf:
         members_dir = os.path.join(output_dir, "members")
         os.makedirs(members_dir, exist_ok=True)
         vsf_threads = []
+        found_members = 0
         for root, _, files in os.walk(bundle_dir):
             for file in files:
                 if re.match(r"mem_\d+_support_files\.tar\.gz", file):
+                    found_members += 1
                     member_tar = os.path.join(root, file)
                     member_name = file.replace("_support_files.tar.gz", "")
                     member_output = os.path.join(members_dir, member_name)
+                    log_debug(f"📦 Detected VSF member bundle: {file}")
                     t = threading.Thread(target=parse_vsf_member, args=(member_tar, member_output))
                     vsf_threads.append(t)
                     t.start()
         for t in vsf_threads:
             t.join()
+        if found_members:
+            log_debug(f"✅ Finished parsing {found_members} VSF member bundle(s)")
+        else:
+            log_debug("ℹ️ No VSF member bundles detected.")
 
-    # Parse Previous Boot Logs if enabled
     if include_prevboot:
-        parse_previous_boot_logs(bundle_dir, output_dir)
+        prev_dir = os.path.join(bundle_dir, "prev_boot_logs")
+        if os.path.exists(prev_dir) and any(entry.startswith("boot") and os.path.isdir(os.path.join(prev_dir, entry)) for entry in os.listdir(prev_dir)):
+            log_debug("🔁 Parsing previous boot logs...")
+            parse_previous_boot_logs(bundle_dir, output_dir)
+            log_debug("✅ Completed previous boot log parsing")
+        else:
+            log_debug("ℹ️ No previous boot log folders detected.")
 
-    # Add README if found
     readme_path = find_readme()
     if readme_path:
         try:
@@ -750,8 +785,8 @@ def parse_bundle(bundle_path, output_dir, options=None):
     except Exception as e:
         log_debug(f"⚠️ Failed to clean temporary directory {bundle_dir}: {e}")
 
+    log_debug(f"✅ Finished parsing bundle: {bundle_path}")
     return output_dir
-
 
 
 
