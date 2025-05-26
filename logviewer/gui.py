@@ -47,8 +47,9 @@ class LogViewerApp:
             self.debug_output.insert("end", f"{msg}\n")
             self.debug_output.see("end")
         self.debug_output.config(state="disabled")
+        self.root.after(500, self.update_debug_log)
         
-    self.root.after(500, self.update_debug_log)
+    
     def update_cpu_usage(self):
         usage = psutil.cpu_percent(interval=1)
         self.cpu_usage_label.config(text=f"CPU Usage: {usage}%")

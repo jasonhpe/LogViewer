@@ -9,11 +9,8 @@ from pathlib import Path
 from logviewer.parser import parse_bundle
 from logviewer.gui import launch_gui
 from logviewer.state import (
-    load_state,
-    save_state,
-    add_parsed_bundle,
-    get_parsed_bundles,
-    get_next_available_port,
+    add_parsed_bundle, remove_parsed_bundle,
+    get_parsed_bundles, get_next_available_port
 )
 
 def analyze_bundle(bundle_path, open_after=False):
@@ -21,18 +18,17 @@ def analyze_bundle(bundle_path, open_after=False):
         print(f"❌ File not found: {bundle_path}")
         sys.exit(1)
 
-    state = load_state()
     print(f"📦 Parsing: {bundle_path}...")
 
     output_dir = bundle_path + "_log_analysis_results"
-    out_dir = parse_bundle(bundle_path, output_dir)  
+    out_dir = parse_bundle(bundle_path, output_dir)
 
     if not out_dir:
         print("❌ Parsing failed.")
         return
 
-    port = get_next_available_port(state)
-    add_parsed_bundle(state, bundle_path, out_dir, port)
+    port = get_next_available_port()
+    add_parsed_bundle(bundle_path, out_dir, port)
     print(f"✅ Parsed output saved to: {out_dir}")
 
     if open_after:
@@ -40,8 +36,7 @@ def analyze_bundle(bundle_path, open_after=False):
         view_bundle(os.path.basename(out_dir))
 
 def list_bundles():
-    state = load_state()
-    bundles = get_parsed_bundles(state)
+    bundles = get_parsed_bundles()
     if not bundles:
         print("ℹ️  No parsed bundles found.")
         return
@@ -61,8 +56,7 @@ def wait_for_server(host, port, timeout=5):
     return False
 
 def view_bundle(bundle_name):
-    state = load_state()
-    bundles = get_parsed_bundles(state)
+    bundles = get_parsed_bundles()
 
     if bundle_name == "latest":
         if not bundles:
@@ -82,12 +76,11 @@ def view_bundle(bundle_name):
         bundle = matched
 
     path = bundle["output_path"]
-    port = bundle.get("port") or get_next_available_port(state)
-    bundle["port"] = port
-    save_state(state)
+    port = bundle.get("port") or get_next_available_port()
+    add_parsed_bundle(path, path, port)  # Re-update with port if it was missing
 
     print(f"🌐 Serving '{path}' at http://localhost:{port}")
-    proc = subprocess.Popen(["python3", "-m", "http.server", str(port), "--directory", path])
+    proc = subprocess.Popen(["python", "-m", "http.server", str(port), "--directory", path])
 
     if wait_for_server("localhost", port, timeout=5):
         webbrowser.open(f"http://localhost:{port}/index.html")
@@ -121,8 +114,6 @@ def main():
         action="store_true",
         help="Open parsed bundle in browser after parsing"
     )
-    
-
     list_cmd = subparsers.add_parser("list", help="List previously parsed bundles")
 
     view = subparsers.add_parser("view", help="Open the log viewer for a parsed bundle")
@@ -141,3 +132,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
