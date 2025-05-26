@@ -47,6 +47,7 @@ Run the following command in **PowerShell as Administrator**:
 ```powershell
 wsl --install
 ```
+Then reboot the PC/Laptop for changes to take effect.
 
 Current versions being posted at:
 
@@ -81,36 +82,6 @@ LogViewer
 - Previously parsed bundles are remembered using `~/.logviewer_state.json`
 
 ---
-
-## 🔧 CLI Examples
-
-Run LogViewer with `--help`:
-```bash
-LogViewer --help
-LogViewer analyze --help
-LogViewer view --help
-```
-
-### Analyze a support bundle
-```bash
-LogViewer analyze --path support1.tar.gz
-```
-
-### Analyze and open viewer
-```bash
-LogViewer analyze --path support1.tar.gz --open
-```
-
-### List parsed bundles
-```bash
-LogViewer list
-```
-
-### View a parsed bundle
-```bash
-LogViewer view --bundle latest
-LogViewer view --bundle support1_log_analysis_results
-```
 
 ## 📦 Requirements
 

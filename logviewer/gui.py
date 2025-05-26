@@ -29,14 +29,34 @@ class LogViewerApp:
         self.root.title("LogViewer GUI v1.1.1-beta.3")
         self.root.geometry("900x550")
 
-        
-        self.running_servers = {}
-        self.viewing_in_progress = False 
+        # Scrollable Canvas Setup
+        self.canvas = tk.Canvas(self.root)
+        self.scroll_y = tk.Scrollbar(self.root, orient="vertical", command=self.canvas.yview)
 
-        self.create_widgets()
+        self.scrollable_frame = tk.Frame(self.canvas)
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
+            )
+        )
+
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scroll_y.set)
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scroll_y.pack(side="right", fill="y")
+
+        # .scrollable_frame inside create_widgets
+        self.running_servers = {}
+        self.viewing_in_progress = False
+
+        self.create_widgets()  
         self.debug_queue = queue.Queue()
         self.root.after(500, self.update_debug_log)
         self.load_previous_bundles()
+
         from logviewer import parser
         parser.set_logger(self.log_debug)
 
@@ -64,9 +84,9 @@ class LogViewerApp:
         
         
         
-        tk.Label(self.root, text="Upload or scan a directory for .tar.gz support bundles.", font=("Helvetica", 10), fg="gray").pack()
+        tk.Label(self.scrollable_frame, text="Upload or scan a directory for .tar.gz support bundles.", font=("Helvetica", 10), fg="gray").pack()
 
-        frame = tk.Frame(self.root, pady=10)
+        frame = tk.Frame(self.scrollable_frame, pady=10)
         frame.pack()
         tk.Button(frame, text="Upload .tar.gz", command=self.select_file, bg="#007acc", fg="white").grid(row=0, column=0, padx=5)
         tk.Button(frame, text="Scan Directory", command=self.scan_directory, bg="#007acc", fg="white").grid(row=0, column=1, padx=5)
@@ -74,24 +94,24 @@ class LogViewerApp:
         tk.Button(frame, text="View README", command=self.show_readme, bg="#6c757d", fg="white").grid(row=0, column=3, padx=5)
 
 
-        self.debug_output = tk.Text(self.root, height=10, state="disabled", bg="#f8f8f8", fg="black", wrap="word")
+        self.debug_output = tk.Text(self.scrollable_frame, height=10, state="disabled", bg="#f8f8f8", fg="black", wrap="word")
         self.debug_output.pack(fill="both", expand=False, padx=10, pady=(5, 10))
 
         
         self.worker_var = tk.IntVar(value=max(1, multiprocessing.cpu_count() - 1))
-        worker_frame = tk.Frame(self.root)
+        worker_frame = tk.Frame(self.scrollable_frame)
         worker_frame.pack(pady=(0, 5))
         tk.Label(worker_frame, text="Max Parallel Parses:").pack(side="left", padx=5)
         tk.Spinbox(worker_frame, from_=1, to=multiprocessing.cpu_count(), textvariable=self.worker_var, width=5, state="readonly").pack(side="left")
-        tk.Label(self.root, text="LogViewer - Aruba Log Analysis GUI", font=("Helvetica", 18, "bold"), pady=10).pack()
-        self.cpu_usage_label = tk.Label(self.root, text="CPU Usage: 0%", fg="gray")
+        tk.Label(self.scrollable_frame, text="LogViewer - Aruba Log Analysis GUI", font=("Helvetica", 18, "bold"), pady=10).pack()
+        self.cpu_usage_label = tk.Label(self.scrollable_frame, text="CPU Usage: 0%", fg="gray")
         self.cpu_usage_label.pack()
         self.update_cpu_usage()
         
-        self.scan_status = tk.Label(self.root, text="Files scanned: 0", anchor="w")
+        self.scan_status = tk.Label(self.scrollable_frame, text="Files scanned: 0", anchor="w")
         self.scan_status.pack()
 
-        self.tree_frame = tk.Frame(self.root)
+        self.tree_frame = tk.Frame(self.scrollable_frame)
         self.tree_frame.pack(fill="both", expand=True)
 
         self.tree_scroll_y = tk.Scrollbar(self.tree_frame)
@@ -110,26 +130,26 @@ class LogViewerApp:
         self.tree_scroll_y.config(command=self.tree.yview)
         self.tree_scroll_x.config(command=self.tree.xview)
 
-        action_frame = tk.Frame(self.root)
+        action_frame = tk.Frame(self.scrollable_frame)
         action_frame.pack(pady=5)
         self.include_fastlogs = tk.BooleanVar(value=True)
         self.include_vsf = tk.BooleanVar(value=True)
         self.include_prevboot = tk.BooleanVar(value=True)
         self.include_linecards = tk.BooleanVar(value=True)
 
-        tk.Checkbutton(self.root, text="Parse Fastlogs", variable=self.include_fastlogs).pack()
-        tk.Checkbutton(self.root, text="Parse VSF Members", variable=self.include_vsf).pack()
-        tk.Checkbutton(self.root, text="Parse Linecard logs", variable=self.include_linecards).pack()
-        tk.Checkbutton(self.root, text="Parse Previous Boot Logs", variable=self.include_prevboot).pack()
+        tk.Checkbutton(self.scrollable_frame, text="Parse Fastlogs", variable=self.include_fastlogs).pack()
+        tk.Checkbutton(self.scrollable_frame, text="Parse VSF Members", variable=self.include_vsf).pack()
+        tk.Checkbutton(self.scrollable_frame, text="Parse Linecard logs", variable=self.include_linecards).pack()
+        tk.Checkbutton(self.scrollable_frame, text="Parse Previous Boot Logs", variable=self.include_prevboot).pack()
         
         tk.Button(action_frame, text="Analyze Selected", command=self.analyze_selected, bg="#28a745", fg="white").grid(row=0, column=0, padx=10)
         tk.Button(action_frame, text="Start Viewer", command=self.start_viewer, bg="#17a2b8", fg="white").grid(row=0, column=1, padx=10)
         tk.Button(action_frame, text="Stop Viewer", command=self.stop_viewer, bg="#dc3545", fg="white").grid(row=0, column=2, padx=10)
 
-        self.status = tk.Label(self.root, text="Ready", anchor="w")
+        self.status = tk.Label(self.scrollable_frame, text="Ready", anchor="w")
         self.status.pack(fill="x")
 
-        self.progress = ttk.Progressbar(self.root, mode="indeterminate")
+        self.progress = ttk.Progressbar(self.scrollable_frame, mode="indeterminate")
         self.progress.pack(fill="x", padx=10)
         self.progress.stop()
         self.progress.pack_forget()
@@ -140,7 +160,7 @@ class LogViewerApp:
             messagebox.showerror("README Not Found", "README.md file not found in the current directory.")
             return
 
-        top = tk.Toplevel(self.root)
+        top = tk.Toplevel(self.scrollable_frame)
         top.title("README.md")
         top.geometry("700x500")
 
