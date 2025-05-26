@@ -6,58 +6,38 @@
 
 ## 🚀 Features
 
-- Parse `.tar.gz` Aruba support bundles
-- Supports logs: `event.log`, `critical.log`, `journalctl`, `.supportlog`
-- Fastlog processing via `fastlogParser`
+- Parse .tar.gz Aruba support bundles (including VSF members, linecards, and previous boots)
+- Supports logs: event.log, critical.log, journalctl, .supportlog
+- Fastlog processing via fastlogParser
 - Extracts and organizes:
-  - Logs
-  - Fastlogs
+  - Logs (merged and normalized)
+  - Fastlogs (raw + merged)
   - ISP output
-  - `diagdump.txt` and sectioned `showtech.txt`
-- Offline HTML viewer with:
-  - Logs
-  - Fastlogs
-  - Diag Dumps
-  - ShowTech
-- Powerful search + filtering:
-  - By process name
-  - Keyword
-  - Timestamp range
-  - Fastlog toggle
-- GUI with persistent session state
-- CLI mode for automation
-- Reusable HTTP ports
-- Viewer for multiple bundles
-- Built-in README-based Help modal
-- Progress bar during parsing
-- Fully self-contained HTML output
-- Logs, and timestamp range Normalized in UTC
-- Added Error timeline chart
+  - diagdump.txt
+  - Sectioned showtech.txt
+
+Interactive Streamlit-based log viewer with:
+ - Tabs for Logs, Fastlogs, Diag Dumps, and ShowTech
+ - Carousel navigation for multiple bundles
+ - Toggleable fastlog, VSF, previous boot, and linecard parsing
+ - Error timeline visualization (LOG_ERR per hour)
+ - Keyword, process name, and timestamp filters
+ 
+ Modern GUI built with Tkinter:
+ - Drag-and-drop .tar.gz support
+ - Persistent session state
+ - Debug panel with live background task updates
+ - Streamlit viewer launch controls (Start/Stop)
+
+- CLI mode for automation and headless environments
+
+-Fully self-contained parsing 
+
+- All timestamps normalized in UTC
 
 ---
 
 ## 🔧 Installation
-
-Go to https://github.hpe.com/settings/tokens
-
-Create a fine-scoped PAT with expiration
-
-              Then   git clone https://github.hpe.com/jason-sanchez/LogViewer.git
-
-Then use it via Git credential manager, GitHub CLI, or manual prompt on clone
-
-```bash
-xdg-settings set default-web-browser firefox.desktop
-git config --global credential.helper store
-git clone https://github.hpe.com/jason-sanchez/LogViewer.git
-[Enter your github user-name]
-[Enter the PAT] 
-cd LogViewer
-pip install . --user
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-```
-
----
 
 ### 🪟 Windows Users – WSL Required for Fastlog Parsing
 To parse `.supportlog` files on Windows, you must have **WSL (Windows Subsystem for Linux)** installed.
@@ -67,81 +47,33 @@ Run the following command in **PowerShell as Administrator**:
 ```powershell
 wsl --install
 ```
-Then restart your machine.
 
-More: https://aka.ms/wslinstall
+Current versions being posted at:
 
-Once installed, LogViewer will automatically use WSL to invoke `fastlogParser` from Windows.
-
-During the installation, you just need to add this directory to your Windows PATH so you can run LogViewer, streamlit, and other installed scripts from any terminal.
-
- Step-by-Step: Add to PATH on Windows
- 
-1. Copy this to the path
-
-%USERPROFILE%\AppData\Roaming\Python\Python313\Scripts
-
-3. Open Environment Variables
-   
-Press Win + S → search for “Environment Variables”
-
-Click “Edit the system environment variables”
-
-In the System Properties window, click “Environment Variables…”
-
-3. Add to your user PATH
-4. 
-Under User variables, find the one called Path
-
-Paste:
-
-%USERPROFILE%\AppData\Roaming\Python\Python313\Scripts
-
-Click OK to close all dialogs
-
-4. Restart PowerShell or CMD
-This ensures it reloads the updated PATH.
-
----
-
-## 🔄 Update
-```bash
-cd LogViewer
-git pull
-pip install . --user --force-reinstall
-```
-
-## ❌ Uninstall
-```bash
-pip uninstall LogViewer
-```
-
----
+https://confluence.arubanetworks.com/spaces/ArubaEng/pages/1164385468/CEE+Aruba+CX+-+Log+Viewer
 
 ## 🚀 CLI and GUI Usage
 Run LogViewer with no arguments to start the GUI:
 ```bash
 LogViewer
 ```
-
-![image](https://github.hpe.com/jason-sanchez/LogViewer/assets/76252/080d17ac-efd8-4142-bf10-55627648a3c8)
-
 ---
 
 ## 🖥 GUI Navigation Guide
 
 **Main GUI options:**
 
-| Button            | Description                                    |
+| Options          |              Description                       |
 |------------------|------------------------------------------------|
 | Upload .tar.gz   | Load a single bundle                           |
 | Scan Directory   | Recursively find bundles                       |
 | Analyze Selected | Parses and generates the HTML viewer           |
 | Start Viewer     | Launches browser or carousel                   |
 | Stop Viewer      | Stops running HTTP viewer                      |
-| Clear            | Removes Pending/Error entries or deletes bundle |
-| Help (?)         | Loads README.md into modal                     |
+| Clear            | Removes Pending/Error entries or deletes bundle|
+| README           | Loads README.md into modal                     |
 | Reopen GUI       | Previously parsed entries auto-loaded          |
+
 
 **Other Notes:**
 - Status bar shows real-time feedback
@@ -179,41 +111,6 @@ LogViewer list
 LogViewer view --bundle latest
 LogViewer view --bundle support1_log_analysis_results
 ```
-
----
-
-## 🧭 How to Use Carousel Viewer
-
-Launch GUI:
-```bash
-LogViewer
-```
-- Upload or scan for multiple `.tar.gz` bundles
-- Select 2 or more parsed entries
-- Click **Start Viewer** to open carousel tab in browser
-
-Only bundles with valid `parsed_logs.json` will appear. `index.html` is no longer generated — viewer is now powered by Streamlit.
-
-![image](https://github.hpe.com/jason-sanchez/LogViewer/assets/76252/db997703-0801-4526-a4c8-d7443c198f68)
-
----
-
-## 📁 Output Structure
-
-```bash
-support1.tar.gz_log_analysis_results/
-├── parsed_logs.json
-├── fastlog_index.json
-├── diag_index.json
-├── showtech_index.json
-├── isp.txt
-├── README.md
-├── fastlogs/
-├── feature/         # diagdumps
-├── showtech/        # sectioned output
-```
-
----
 
 ## 📦 Requirements
 

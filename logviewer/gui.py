@@ -31,7 +31,7 @@ class LogViewerApp:
 
         
         self.running_servers = {}
-        self.viewing_in_progress = False
+        self.viewing_in_progress = False 
 
         self.create_widgets()
         self.debug_queue = queue.Queue()
@@ -71,6 +71,8 @@ class LogViewerApp:
         tk.Button(frame, text="Upload .tar.gz", command=self.select_file, bg="#007acc", fg="white").grid(row=0, column=0, padx=5)
         tk.Button(frame, text="Scan Directory", command=self.scan_directory, bg="#007acc", fg="white").grid(row=0, column=1, padx=5)
         tk.Button(frame, text="Clear", command=self.clear_entries, bg="#ffc107", fg="black").grid(row=0, column=2, padx=5)
+        tk.Button(frame, text="View README", command=self.show_readme, bg="#6c757d", fg="white").grid(row=0, column=3, padx=5)
+
 
         self.debug_output = tk.Text(self.root, height=10, state="disabled", bg="#f8f8f8", fg="black", wrap="word")
         self.debug_output.pack(fill="both", expand=False, padx=10, pady=(5, 10))
@@ -131,6 +133,25 @@ class LogViewerApp:
         self.progress.pack(fill="x", padx=10)
         self.progress.stop()
         self.progress.pack_forget()
+
+    def show_readme(self):
+        readme_path = Path("README.md")
+        if not readme_path.exists():
+            messagebox.showerror("README Not Found", "README.md file not found in the current directory.")
+            return
+
+        top = tk.Toplevel(self.root)
+        top.title("README.md")
+        top.geometry("700x500")
+
+        text_widget = tk.Text(top, wrap="word", bg="#f8f8f8")
+        text_widget.pack(fill="both", expand=True)
+
+        with open(readme_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            text_widget.insert("1.0", content)
+
+        text_widget.config(state="disabled")
 
     def select_file(self):
         file = filedialog.askopenfilename(filetypes=[("Tar GZ Files", "*.tar.gz")])
