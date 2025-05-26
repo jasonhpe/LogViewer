@@ -26,7 +26,7 @@ from logviewer.state import (
 class LogViewerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("LogViewer GUI")
+        self.root.title("LogViewer GUI v1.1.1-beta.3")
         self.root.geometry("900x550")
 
         

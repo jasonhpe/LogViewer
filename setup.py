@@ -38,7 +38,7 @@ class CustomInstallCommand(install):
 
 setup(
     name='LogViewer',
-    version='1.1.0',
+    version='1.1.0-beta3',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
