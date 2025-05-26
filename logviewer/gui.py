@@ -178,7 +178,7 @@ class LogViewerApp:
                             if os.path.exists(output_path):
                                 shutil.rmtree(output_path, ignore_errors=True)
                                 self.log_debug(f"🧨 Deleted parsed output: {output_path}")
-                        remove_parsed_bundle(path, None)
+                        remove_parsed_bundle(path)
                         self.log_debug(f"🗑️ Removed parsed entry: {path}")
                         to_remove.append(item)
                     else:
